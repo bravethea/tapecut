@@ -43,6 +43,10 @@ config.json
 # ── Private planning notes (references other, non-public projects) ────────
 PLAN.md
 
+# ── Claude Code ───────────────────────────────────────────────────────────
+# CLAUDE.md is shared and committed; local permission grants are not.
+.claude/settings.local.json
+
 # ── macOS / editors ───────────────────────────────────────────────────────
 .DS_Store
 ._*

@@ -22,13 +22,18 @@ display.
 A transcript is a list of **words**, each with its own timing and state:
 
 ```python
-{"word": "hello", "start": 12.40, "end": 12.71, "cut": False, "speaker": "SPEAKER_00"}
+{"word": "hello", "start": 12.40, "end": 12.71, "probability": 0.98, "deleted": False}
 ```
 
-Everything follows from per-word timestamps. "Cut a word" sets `cut: True`.
+A `speaker` key is added to each word once diarization has run.
+
+Everything follows from per-word timestamps. "Cut a word" sets `deleted: True`.
 "Export" turns the surviving words into time ranges and hands those to ffmpeg or
 pydub. There is no separate edit list and no separate timeline — the word array
 *is* the edit.
+
+The flag is `deleted`. `cut` appears only as a CSS class name and as the
+library's `n_cut` statistic — there is no `cut` field on a word.
 
 `core/audio_editor.py:compute_kept_segments()` is the function that converts
 word states into the ranges everything downstream uses. If you are looking for
