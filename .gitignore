@@ -1,0 +1,51 @@
+# ── Python ────────────────────────────────────────────────────────────────
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Your data, never the repository's ─────────────────────────────────────
+# Tapecut keeps everything it makes in ~/Tapecut (transcripts, cache, exports,
+# cover images, config.json with your Drive remote and HuggingFace token), so
+# that is already outside the repo. These rules cover the cases where working
+# files land next to the code instead.
+*.tapecut.json          # per-file transcript sidecars (legacy layout)
+/Tapecut/
+/transcripts/
+/exports/
+/cache/
+/assets/
+config.json
+.env
+*.env
+
+# ── Media: never commit recordings ────────────────────────────────────────
+*.mp3
+*.wav
+*.m4a
+*.flac
+*.opus
+*.ogg
+*.aac
+*.aiff
+*.wma
+*.mp4
+*.mov
+*.m4v
+*.mkv
+*.webm
+*.avi
+
+# ── Private planning notes (references other, non-public projects) ────────
+PLAN.md
+
+# ── macOS / editors ───────────────────────────────────────────────────────
+.DS_Store
+._*
+.idea/
+.vscode/
+*.swp

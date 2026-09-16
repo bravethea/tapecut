@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tapecut</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- ─────────────────────────────── app bar (sticky) ─────────────────────── -->
+<header id="appbar">
+  <span class="brand">Tapecut</span>
+  <span id="now-open" class="now-open"></span>
+  <span class="spacer"></span>
+  <span id="job-chip" class="job-chip hidden"></span>
+  <button id="btn-help" class="ghost" title="Keyboard shortcuts (⌘/)">?</button>
+  <button id="btn-theme" class="ghost" title="Light / dark">◐</button>
+  <button id="btn-modes" class="ghost hidden" title="Pick a different task">Change task</button>
+</header>
+
+<!-- ─────────────────────────────── task picker ──────────────────────────── -->
+<section id="mode-picker">
+  <h1 class="picker-title">What would you like to do?</h1>
+  <div class="mode-grid">
+    <button class="mode-card" data-mode="edit">
+      <b>Edit a recording</b>
+      <span class="mode-desc">Cut words, fillers and pauses from the transcript,
+        then export the edited audio or a YouTube-ready MP4.</span>
+      <span class="mode-go">Start editing →</span>
+    </button>
+    <button class="mode-card" data-mode="text">
+      <b>Transcribe &amp; get the text</b>
+      <span class="mode-desc">Turn a recording into a transcript — read it, label
+        the speakers, export TXT, Markdown or subtitles.</span>
+      <span class="mode-go">Get the text →</span>
+    </button>
+    <button class="mode-card" data-mode="notes">
+      <b>Summarise &amp; extract</b>
+      <span class="mode-desc">Meeting notes, decisions, action items and key
+        points from what was said.</span>
+      <span class="mode-go">Make notes →</span>
+    </button>
+  </div>
+  <p id="mode-note" class="muted"></p>
+</section>
+
+<!-- ─────────────────────────────── workspace ────────────────────────────── -->
+<div id="workspace" class="hidden">
+
+  <!-- sources rail -------------------------------------------------------- -->
+  <aside id="rail">
+    <div class="rail-tabs" role="tablist">
+      <button class="rail-tab is-on" data-src="drive" role="tab">Drive</button>
+      <button class="rail-tab" data-src="library" role="tab">Library</button>
+      <button class="rail-tab" data-src="local" role="tab">This Mac</button>
+    </div>
+
+    <label class="sr-only" for="rail-search">Filter recordings</label>
+    <input id="rail-search" type="search" placeholder="Filter by name…" spellcheck="false">
+
+    <!-- Drive ---------------------------------------------------------- -->
+    <section id="drive-panel" class="rail-pane">
+      <div class="rail-head">
+        <span id="drive-status" class="muted"></span>
+        <button id="btn-drive-list" class="ghost sm" title="Refresh">↻</button>
+      </div>
+      <div class="rail-row-actions">
+        <button id="btn-drive-random" class="secondary sm">🎲 Random recording</button>
+      </div>
+      <label class="sr-only" for="drive-folder">Drive folder</label>
+      <input id="drive-folder" type="text" spellcheck="false" class="sm-input">
+      <div id="drive-dirs" class="chips"></div>
+      <div id="drive-files" class="rail-list"></div>
+      <div id="drive-error" class="error hidden"></div>
+      <div id="drive-fetch-status" class="status hidden"></div>
+    </section>
+
+    <!-- Library -------------------------------------------------------- -->
+    <section id="library-panel" class="rail-pane hidden">
+      <div class="rail-head">
+        <span class="muted">Saved transcripts <span id="library-count"></span></span>
+      </div>
+      <div id="library-list" class="rail-list"></div>
+      <div id="library-hint" class="muted rail-foot"></div>
+    </section>
+
+    <!-- Local ---------------------------------------------------------- -->
+    <section id="open-panel" class="rail-pane hidden">
+      <div class="rail-row-actions">
+        <button id="btn-browse" class="secondary sm">📂 Choose a file…</button>
+      </div>
+      <p class="muted rail-foot">Opens a normal Finder window.</p>
+      <div id="browse-status" class="status hidden"></div>
+      <label class="sr-only" for="path-input">Media file path</label>
+      <input id="path-input" type="text" spellcheck="false" class="sm-input"
+             placeholder="…or paste a path">
+      <div class="rail-row-actions"><button id="btn-open" class="ghost sm">Open path</button></div>
+      <div id="open-error" class="error hidden"></div>
+    </section>
+
+    <!-- Settings ------------------------------------------------------- -->
+    <details id="cover-panel" class="rail-settings">
+      <summary>MP4 cover image <span id="cover-current" class="muted"></span></summary>
+      <p class="muted">Audio recordings are rendered to MP4 over this still image
+        (1920×1080). Click one to make it the default.</p>
+      <div id="cover-grid"></div>
+      <label class="sr-only" for="cover-input">Add a cover image</label>
+      <input id="cover-input" type="text" spellcheck="false" class="sm-input"
+             placeholder="~/Pictures/cover.png  or  gdrive:…/cover.png">
+      <div class="rail-row-actions"><button id="btn-cover-add" class="ghost sm">Add &amp; use</button></div>
+      <div id="cover-error" class="error hidden"></div>
+    </details>
+  </aside>
+
+  <!-- work surface -------------------------------------------------------- -->
+  <main id="work">
+
+    <section id="transcribe-panel" class="card hidden">
+      <div class="row">
+        <div class="grow">
+          <label for="prompt-input">Vocabulary hint — names and unusual terms improve accuracy</label>
+          <input id="prompt-input" type="text" spellcheck="false"
+                 placeholder="e.g. Vipassana, samadhi, metta, jhāna…">
+        </div>
+        <div>
+          <label for="lang-select">Language</label>
+          <select id="lang-select">
+            <option value="en" selected>English</option>
+            <option value="de">German</option>
+            <option value="fr">French</option>
+            <option value="es">Spanish</option>
+            <option value="it">Italian</option>
+            <option value="sr">Serbian</option>
+            <option value="hr">Croatian</option>
+            <option value="nl">Dutch</option>
+            <option value="">Auto-detect</option>
+          </select>
+        </div>
+        <button id="btn-transcribe" class="primary">Transcribe</button>
+      </div>
+      <div id="transcribe-status" class="status hidden"></div>
+    </section>
+
+    <div id="empty-state" class="empty">
+      <p class="empty-lead">No recording open.</p>
+      <p class="muted">Pick one from the rail on the left — Drive, a saved transcript,
+        or a file on this Mac.</p>
+    </div>
+
+    <section id="editor" class="hidden">
+
+      <!-- sticky stage: player + actions -->
+      <div id="stage">
+        <div id="media-wrap">
+          <video id="media" controls playsinline preload="metadata"></video>
+          <div id="media-label" class="muted"></div>
+        </div>
+
+        <div id="controls">
+          <div class="grp">
+            <button id="btn-play" class="primary">▶ Preview</button>
+            <label class="check" title="Play the edit, skipping what you cut">
+              <input type="checkbox" id="skip-cuts" checked> skip cuts
+            </label>
+          </div>
+
+          <div class="grp">
+            <div class="menu-wrap">
+              <button id="btn-cleanup" class="secondary">Clean up ▾</button>
+              <div id="cleanup-menu" class="menu hidden">
+                <button id="btn-fillers" class="menu-item">
+                  <span>Find fillers</span><span class="menu-note">review before cutting</span>
+                </button>
+                <button id="btn-disfluencies" class="menu-item">
+                  <span>Cross out repeats &amp; stutters</span><span class="menu-note">reversible</span>
+                </button>
+                <div class="menu-sep"></div>
+                <button id="btn-pauses" class="menu-item" disabled>
+                  <span>Trim pauses</span><span id="pauses-note" class="menu-note"></span>
+                </button>
+                <label class="menu-field" title="Show a marker for every silence at least this long">
+                  pauses over
+                  <input type="number" id="pause-gap" value="1" min="0.2" max="10" step="0.1">s
+                </label>
+              </div>
+            </div>
+            <button id="btn-undo" class="ghost" title="Undo (⌘Z)">Undo</button>
+          </div>
+
+          <span class="spacer"></span>
+
+          <div id="stats" class="stats"></div>
+
+          <div class="grp">
+            <label class="sr-only" for="export-format">Export format</label>
+            <select id="export-format"></select>
+            <button id="btn-export" class="primary">Export</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="missing-bar" class="banner danger hidden">
+        <span id="missing-msg"></span>
+      </div>
+
+      <div id="filler-bar" class="banner warn hidden">
+        <span id="filler-msg"></span>
+        <button id="btn-filler-apply" class="secondary sm">Delete them</button>
+        <button id="btn-filler-cancel" class="ghost sm">Cancel</button>
+      </div>
+
+      <div id="speaker-bar" class="speakers hidden">
+        <span class="label">Speakers</span>
+        <span id="speaker-chips"></span>
+        <span class="spacer"></span>
+        <label class="sr-only" for="speaker-count">Expected speakers</label>
+        <select id="speaker-count" title="How many speakers to expect">
+          <option value="">auto</option>
+          <option value="1">1</option><option value="2">2</option>
+          <option value="3">3</option><option value="4">4</option>
+          <option value="5">5</option><option value="6">6</option>
+        </select>
+        <button id="btn-diarize" class="ghost sm">Identify speakers</button>
+      </div>
+
+      <div id="export-status" class="status hidden"></div>
+
+      <div id="transcript"></div>
+      <p id="help" class="hint">Click a word to cut it · drag for a range ·
+        <b>⌥</b>-click to restore · right-click to fix the text ·
+        <b>⌘/</b> for all shortcuts</p>
+
+      <!-- outputs ------------------------------------------------------ -->
+      <div class="tabs" role="tablist">
+        <button class="tab is-on" data-panel="text-panel" role="tab">Transcript text</button>
+        <button class="tab" data-panel="analysis-panel" role="tab">Summarise &amp; extract</button>
+      </div>
+
+      <section id="text-panel" class="card">
+        <div class="row wrap">
+          <label class="sr-only" for="text-format">Text format</label>
+          <select id="text-format">
+            <option value="txt">Plain text (.txt)</option>
+            <option value="md">Markdown (.md)</option>
+            <option value="srt">Subtitles (.srt)</option>
+            <option value="vtt">Subtitles (.vtt)</option>
+          </select>
+          <label class="check" title="Include the words you cut, in [brackets]">
+            <input type="checkbox" id="text-include-cut"> include cut words
+          </label>
+          <button id="btn-text-copy" class="ghost">Copy</button>
+          <button id="btn-text-save" class="secondary">Save file</button>
+          <span class="spacer"></span>
+          <span id="text-status" class="muted"></span>
+        </div>
+        <pre id="text-preview"></pre>
+      </section>
+
+      <section id="analysis-panel" class="card hidden">
+        <div class="row wrap">
+          <button id="btn-an-meeting" class="secondary">Meeting notes</button>
+          <button id="btn-an-summary" class="ghost">Summary</button>
+          <button id="btn-an-todos" class="ghost">Action items</button>
+          <button id="btn-an-keypoints" class="ghost">Key points</button>
+          <span class="spacer"></span>
+          <button id="btn-an-copy" class="ghost sm">Copy</button>
+          <button id="btn-an-save" class="ghost sm">Save .md</button>
+        </div>
+        <p id="analysis-backend" class="muted"></p>
+        <div id="analysis-status" class="status hidden"></div>
+        <div id="analysis-out"></div>
+      </section>
+    </section>
+  </main>
+</div>
+
+<!-- ─────────────────────────────── overlays ─────────────────────────────── -->
+<div id="help-sheet" class="sheet hidden">
+  <div class="sheet-box">
+    <div class="sheet-head">
+      <b>Keyboard &amp; mouse</b>
+      <button id="help-close" class="ghost sm">Close</button>
+    </div>
+    <dl class="keys">
+      <dt>Click</dt><dd>cut a word / restore it</dd>
+      <dt>Drag</dt><dd>cut a range of words</dd>
+      <dt>⌥ Click</dt><dd>restore, never cut</dd>
+      <dt>Right-click</dt><dd>correct the word's text (↵ save, esc cancel)</dd>
+      <dt>Double-click</dt><dd>move the playhead there</dd>
+      <dt>Space</dt><dd>play / pause the preview</dd>
+      <dt>⌘Z</dt><dd>undo</dd>
+      <dt>⌘/</dt><dd>this list</dd>
+    </dl>
+    <p class="muted">Pause markers in the text are silences — click one to trim it
+      to about half a second. Everything you do saves itself.</p>
+
+    <!-- AGPL "Appropriate Legal Notices": copyright, warranty disclaimer, and
+         an offer of the source to anyone this is served to. -->
+    <p class="legal muted">
+      <b>Tapecut</b> — Copyright © 2025–2026 Teodora Vuković (Teodora Vukovic).
+      Free software under the
+      <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank"
+         rel="noopener">GNU Affero General Public License v3</a> or later, with
+      ABSOLUTELY NO WARRANTY.
+      <a id="source-link" href="https://github.com/bravethea/tapecut"
+         target="_blank" rel="noopener">Get the source</a>.
+    </p>
+  </div>
+</div>
+
+<div id="viewer" class="sheet hidden">
+  <div class="sheet-box wide">
+    <div class="sheet-head">
+      <span id="viewer-title"></span>
+      <button id="viewer-close" class="ghost sm">Close</button>
+    </div>
+    <div id="viewer-cols"></div>
+  </div>
+</div>
+
+<div id="save-dot" title="All changes saved">●</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

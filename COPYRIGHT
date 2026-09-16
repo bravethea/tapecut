@@ -1,0 +1,41 @@
+Tapecut — edit audio and video by editing the transcript.
+
+Copyright (C) 2025-2026 Teodora Vuković (Teodora Vukovic)
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+The full licence text is in the file LICENSE.
+
+
+Third-party components
+----------------------
+
+Tapecut is a Python application that runs against these projects; it does not
+redistribute them. They are installed from PyPI by `pip install -r
+requirements.txt` and remain under their own licences:
+
+  PyQt6          GPL v3 (or a commercial Riverbank licence)
+  whisperX       BSD-2-Clause
+  faster-whisper MIT
+  pyannote.audio MIT (model weights are separately gated on HuggingFace)
+  Flask          BSD-3-Clause
+  pydub          MIT
+  sounddevice    MIT
+  NumPy          BSD-3-Clause
+
+ffmpeg and rclone are invoked as external programs (LGPL/GPL and MIT
+respectively) and are likewise not redistributed here.
+
+PyQt6 being GPL v3 is part of why Tapecut is AGPL v3: the desktop window is a
+derivative of a GPL v3 library, and AGPL v3 is the licence that satisfies that
+obligation while also covering the browser UI when it is served over a network.

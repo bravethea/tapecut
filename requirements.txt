@@ -1,0 +1,7 @@
+whisperx>=3.8.5  # transcription engine: faster-whisper large-v3 + VAD + alignment
+PyQt6>=6.7.0
+pydub>=0.25.1
+audioop-lts>=0.2.1  # Python 3.13 backport of audioop (removed from stdlib in 3.13)
+sounddevice>=0.4.6
+numpy>=1.24.0
+flask>=3.0  # browser UI (web/server.py)
