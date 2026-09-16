@@ -56,6 +56,10 @@ player and the editing tools stay pinned above it while you scroll.
 identification, export — report into it, it survives scrolling, and it stays put
 when the job finishes. Start a 35-minute job and walk away.
 
+**‹ Back** in the top bar closes the recording and returns you to the source
+list, keeping the task you are in. **esc** does the same. (**Change task** is a
+different thing: it switches between editing, text and notes.)
+
 **◐** in the top bar cycles light → dark → follow-the-system. **?** (or **⌘/**)
 shows the shortcut list.
 
@@ -78,6 +82,10 @@ most recent are kept, and nothing is ever written back to Drive.
 
 **From the library.** Anything you have transcribed before reopens instantly,
 with every edit intact. See [§11](#11-the-transcript-library).
+
+A recording with no transcript yet still opens fully: you get the player, so you
+can listen before deciding to transcribe. The transcript area stays empty and
+the tools that need words are switched off until you press **Transcribe**.
 
 ### Formats
 
@@ -318,6 +326,7 @@ bar explaining that playback and export are off until the file turns up.
 | Double-click | move the playhead there |
 | Space | play / pause the preview |
 | ⌘Z | undo |
+| esc | back out one level — a sheet, then a filler review, then the recording |
 | ⌘/ | the shortcut list |
 
 ## 13. When things go wrong

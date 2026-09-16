@@ -772,6 +772,64 @@ $("viewer").addEventListener("click", (e) => {
   if (e.target === $("viewer")) $("viewer").classList.add("hidden");
 });
 
+/* ---------------------------------------------------------------- close */
+
+$("btn-back").onclick = closeRecording;
+
+// Escape backs out one level at a time, innermost first: a sheet, then a
+// filler review, then the recording itself. A word being edited handles its
+// own Escape and stops it propagating this far.
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || state.editingIdx != null) return;
+
+  if (!$("viewer").classList.contains("hidden")) {
+    $("viewer").classList.add("hidden");
+  } else if (!$("help-sheet").classList.contains("hidden")) {
+    $("help-sheet").classList.add("hidden");
+  } else if (!$("filler-bar").classList.contains("hidden")) {
+    cancelFillers();
+  } else if (state.path && !e.target.matches("input, textarea, select")) {
+    closeRecording();
+  }
+});
+
+/** Back out of the open recording to the source list, keeping the task. */
+function closeRecording() {
+  if (!state.path) return;
+
+  state.path = null;
+  state.source = null;
+  state.words = [];
+  state.spans = [];
+  state.pauseCuts = new Set();
+  state.pauseChips = {};
+  state.undoStack = [];
+  state.playingIdx = -1;
+  state.editingIdx = null;
+  state.mediaMissing = false;
+  state.analyses = {};
+  state.lastAnalysis = null;
+
+  cancelFillers();
+  media.pause();
+  media.removeAttribute("src");
+  media.load();                       // drop the buffered file, stop the fetch
+
+  $("transcript").innerHTML = "";
+  $("analysis-out").innerHTML = "";
+  $("editor").classList.add("hidden");
+  $("transcribe-panel").classList.add("hidden");
+  $("missing-bar").classList.add("hidden");
+  $("speaker-bar").classList.add("hidden");
+  $("empty-state").classList.remove("hidden");
+  setStatus("transcribe-status", "");
+  setStatus("export-status", "");
+  $("now-open").textContent = "";
+  $("btn-back").classList.add("hidden");
+  document.title = "Tapecut";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 /* ---------------------------------------------------------------- open */
 
 $("btn-open").onclick = openFile;
@@ -845,6 +903,7 @@ function loadRecording(info) {
     ? "identify who is speaking"
     : "needs a HuggingFace token (HF_TOKEN) — the pyannote models are gated";
   $("now-open").textContent = info.name || "";
+  $("btn-back").classList.remove("hidden");
   $("prompt-input").value = info.prompt || "";
 
   // the recording file is gone but its transcript is not: show the words so
@@ -899,10 +958,14 @@ function loadRecording(info) {
     setStatus("transcribe-status",
       `Loaded saved transcript (${info.words.length} words) — no need to re-transcribe.`);
   } else {
-    $("editor").classList.add("hidden");
+    // No transcript yet. Show the editor shell anyway — the player lives
+    // inside it, and you want to hear a recording before transcribing it.
+    // loadWords([]) is what clears the PREVIOUS recording's words; without it
+    // the last transcript would sit under the new recording's player.
+    loadWords([], []);
     setStatus("transcribe-status", info.model_cached
-      ? "Ready to transcribe."
-      : "Note: first transcription downloads the Whisper model (~3 GB).");
+      ? "Ready to transcribe — press Transcribe, or play it first."
+      : "Note: the first transcription downloads the Whisper model (~1.6 GB).");
   }
   if (info.silent) {
     setStatus("transcribe-status",
@@ -968,8 +1031,18 @@ function loadWords(words, pauseCuts = []) {
   renderTranscript();
   $("editor").classList.remove("hidden");
   $("empty-state").classList.add("hidden");
+  syncWordActions();
   applyMode();
   refreshTextPreview();
+}
+
+/** Anything that operates on words is unusable until there are some. */
+function syncWordActions() {
+  const none = !state.words.length || state.mediaMissing;
+  ["btn-play", "btn-export"].forEach((id) => { $(id).disabled = none; });
+  const noWords = !state.words.length;
+  ["btn-undo", "btn-fillers", "btn-disfluencies", "btn-text-copy", "btn-text-save"]
+    .forEach((id) => { if ($(id)) $(id).disabled = noWords; });
 }
 
 /** (Re)build the transcript DOM from state.words at the current pause threshold. */
@@ -1187,7 +1260,10 @@ function afterEdit() {
 
 function updateStats() {
   const words = state.words;
-  if (!words.length) return;
+  if (!words.length) {          // clear, or the previous recording's numbers
+    $("stats").innerHTML = "";  // sit under the new one
+    return;
+  }
   const total = words[words.length - 1].end - words[0].start;
   const kept = keptSegments().reduce((acc, [s, e]) => acc + (e - s), 0);
   const cut = words.filter((w) => w.deleted).length;
@@ -1323,7 +1399,11 @@ function finishEdit(commit) {
 transcriptBox.addEventListener("keydown", (e) => {
   if (state.editingIdx == null) return;
   if (e.key === "Enter") { e.preventDefault(); finishEdit(true); }
-  else if (e.key === "Escape") { e.preventDefault(); finishEdit(false); }
+  else if (e.key === "Escape") {
+    e.preventDefault();
+    e.stopPropagation();       // this Escape is spent; don't let it back out too
+    finishEdit(false);
+  }
 });
 
 transcriptBox.addEventListener("focusout", (e) => {
