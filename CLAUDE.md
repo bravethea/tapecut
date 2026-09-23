@@ -57,6 +57,17 @@ thread and returns a job id; the client polls `GET /api/job/<id>`.
 Transcription, Drive fetches, diarization and export all go through it. Anything
 that can take minutes should too.
 
+**Sources are pluggable, config is personal.** The rail has three sources:
+Drive (`core/drive.py`, rclone), the library, and local folders
+(`core/folders.py`). A connected folder is a `{name, path}` entry under
+`"folders"` in `~/Tapecut/config.json` — never in the repo. `folders.SUGGESTED`
+ships only standard macOS paths, which are the same for every user; do not add
+anyone's own directory to it. Paths are stored home-relative (`~/…`).
+
+macOS TCC blocks several interesting folders (Voice Memos, Desktop, Documents,
+Downloads) until the user grants Full Disk Access, so `folders.readable()`
+returns a reason and the UI shows it. Never let a blocked folder read as empty.
+
 **Two persistence layers.** The browser UI writes to the library
 (`core/library.py` → `~/Tapecut/transcripts`, JSON + a readable `.txt`), keyed on
 **filename + size** — so renaming a file makes Tapecut treat it as a new

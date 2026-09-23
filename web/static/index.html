@@ -91,13 +91,27 @@
       <div class="rail-row-actions">
         <button id="btn-browse" class="secondary sm">📂 Choose a file…</button>
       </div>
-      <p class="muted rail-foot">Opens a normal Finder window.</p>
       <div id="browse-status" class="status hidden"></div>
-      <label class="sr-only" for="path-input">Media file path</label>
-      <input id="path-input" type="text" spellcheck="false" class="sm-input"
-             placeholder="…or paste a path">
-      <div class="rail-row-actions"><button id="btn-open" class="ghost sm">Open path</button></div>
-      <div id="open-error" class="error hidden"></div>
+
+      <!-- connected folders: an app's storage folder, a card, any directory -->
+      <div class="rail-head">
+        <span class="label grow">Folders</span>
+        <button id="btn-folder-add" class="ghost sm" title="Connect a folder">＋ Connect</button>
+      </div>
+      <div id="folder-chips" class="chips"></div>
+      <div id="folder-suggestions" class="chips"></div>
+      <div id="folder-files" class="rail-list"></div>
+      <div id="folder-error" class="error hidden"></div>
+      <div id="folder-status" class="status hidden"></div>
+
+      <details class="rail-settings">
+        <summary>Open a path directly</summary>
+        <label class="sr-only" for="path-input">Media file path</label>
+        <input id="path-input" type="text" spellcheck="false" class="sm-input"
+               placeholder="/path/to/recording.m4a">
+        <div class="rail-row-actions"><button id="btn-open" class="ghost sm">Open path</button></div>
+        <div id="open-error" class="error hidden"></div>
+      </details>
     </section>
 
     <!-- Settings ------------------------------------------------------- -->

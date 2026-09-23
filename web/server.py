@@ -38,6 +38,7 @@ from core.export import (
 )
 from core import (
     project, library, drive, convert, disfluency, diarize, textexport, summarize,
+    folders,
 )
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -175,6 +176,19 @@ def api_open():
     return jsonify(_open_payload(path))
 
 
+BROWSE_FOLDER_SCRIPT = """
+try
+    tell application "System Events"
+        activate
+        set theFolder to choose folder with prompt "Choose a folder of recordings" ¬
+            default location (path to home folder)
+    end tell
+    return POSIX path of theFolder
+on error number -128
+    return "__CANCELLED__"
+end try
+"""
+
 BROWSE_SCRIPT = """
 try
     tell application "System Events"
@@ -230,6 +244,62 @@ def api_convert():
 
     def work():
         return {"play_path": convert.to_playable(str(path))}
+
+    return jsonify({"job": _start_job(work)})
+
+
+# ---------------------------------------------------------------- folders
+
+@app.get("/api/folders")
+def api_folders():
+    """Connected folders plus standard locations worth offering."""
+    return jsonify({
+        "folders": folders.connected(),
+        "suggestions": folders.suggestions(),
+    })
+
+
+@app.post("/api/folders")
+def api_folders_add():
+    data = request.get_json(force=True)
+    try:
+        if data.get("remove"):
+            folders.remove(data["path"])
+            return jsonify({"ok": True})
+        entry = folders.add(data.get("path", ""), data.get("name", ""))
+    except folders.FolderError as e:
+        return jsonify({"error": str(e)}), 400
+    except KeyError:
+        return jsonify({"error": "No folder given."}), 400
+    return jsonify(entry)
+
+
+@app.get("/api/folders/list")
+def api_folders_list():
+    path = request.args.get("path", "")
+    try:
+        return jsonify({"path": path, "files": folders.list_media(path)})
+    except folders.FolderError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.post("/api/folders/browse")
+def api_folders_browse():
+    """Native folder picker, so a path never has to be typed. Runs as a job."""
+    def work():
+        result = subprocess.run(
+            ["osascript", "-e", BROWSE_FOLDER_SCRIPT],
+            capture_output=True, text=True, timeout=600,
+        )
+        chosen = result.stdout.strip()
+        if result.returncode != 0:
+            detail = (result.stderr or "").strip()
+            if not detail:
+                return {"cancelled": True}
+            raise RuntimeError(detail.splitlines()[-1])
+        if not chosen or chosen == "__CANCELLED__":
+            return {"cancelled": True}
+        return folders.add(chosen)
 
     return jsonify({"job": _start_job(work)})
 

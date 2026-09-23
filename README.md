@@ -24,6 +24,10 @@ model (~1.6 GB); after that it works with the network off.
 | **📝 Transcribe & get the text** | Read the transcript, correct mishearings, label who spoke, export TXT / Markdown / SRT / WebVTT. |
 | **🧠 Summarise & extract** | Meeting notes, decisions, action items, key points. |
 
+Recordings can come from a file on your Mac, a folder you connect once (the
+Voice Memos store, a field recorder, a sync folder), your own Google Drive, or
+anything you have already transcribed.
+
 All three share one transcript, so you can switch between them at any time, and
 everything you do is saved against the recording — a transcript you summarise
 today can be edited a year from now.
@@ -75,7 +79,8 @@ venv/bin/python main.py
 
 1. Open the browser UI and pick **Edit a recording**.
 2. In the rail on the left choose **This Mac → 📂 Choose a file…** and pick a
-   recording.
+   recording. (Or **＋ Connect** a folder — your Voice Memos folder, a
+   recorder's card — and pick from its list.)
 3. Press **Transcribe**. A 30-minute recording takes a few minutes.
 4. Click any word to cut it. Click it again to bring it back.
 5. Press **▶ Preview** to hear the edit with the cuts skipped.

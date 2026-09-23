@@ -66,6 +66,53 @@ committed and never shared.
 
 ---
 
+## Optional: connected folders
+
+Tapecut can browse any folder on your Mac from the rail — most usefully the
+folder an app keeps its recordings in.
+
+Connect one with *This Mac → **＋ Connect***, or take one of the dashed
+suggestions. Connections are saved in `~/Tapecut/config.json`:
+
+```json
+{
+  "folders": [
+    {"name": "Voice Memos",
+     "path": "~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings"}
+  ]
+}
+```
+
+Paths under your home directory are stored as `~/…`, so the file still works if
+you move it to another account. Nothing is copied — Tapecut reads the files
+where they are, and the owning app never sees a change.
+
+### Granting Full Disk Access
+
+macOS protects several of the folders you are most likely to want — Voice
+Memos, Desktop, Documents, Downloads. A connected folder you cannot read shows
+amber in the rail and says so, rather than looking empty.
+
+To allow it:
+
+1. **System Settings → Privacy & Security → Full Disk Access**
+2. Press **+** and add whatever launches Tapecut. If you start it from
+   Terminal, add Terminal (or iTerm). If you start it another way, add the
+   interpreter itself: `venv/bin/python3.13` inside the project — press
+   **⌘⇧G** in the file dialog and paste the path.
+3. Restart the server.
+
+This is a permission you grant to a program on your own machine; Tapecut still
+reads nothing but the folders you connect, and still uploads nothing.
+
+### Where this is useful
+
+Voice Memos on the Mac syncs from iPhone, so a memo you record on your phone
+appears in that folder and is transcribable on the Mac minutes later without
+exporting or emailing it to yourself.
+
+---
+
 ## Optional: Google Drive
 
 Tapecut reads Drive through [rclone](https://rclone.org), **read-only**. It can

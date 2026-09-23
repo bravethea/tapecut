@@ -74,6 +74,29 @@ dialog. (A browser `<input type=file>` cannot tell the server where a file is on
 disk, so Tapecut asks macOS directly — which works only because the server is
 running on your own machine.) You can also paste a path.
 
+**From a connected folder.** Apps that record for you keep their files
+somewhere fixed and usually awkward — Voice Memos buries its recordings deep in
+`~/Library`, a field recorder shows up as a memory card. Connect the folder once
+and its recordings are a click away in the rail, newest first.
+
+*This Mac → **＋ Connect*** opens a Finder folder picker; standard places you
+have (Voice Memos, Music, Movies, Downloads, Desktop) are also offered as
+dashed one-click chips. Click a connected folder to list it, click a recording
+to open it, and hover a chip and press **✕** to disconnect. Tapecut searches a
+few levels down, because apps nest.
+
+Nothing is copied or moved. Tapecut reads the files where they are and writes
+the transcript to its own library, so the app that owns the folder never sees a
+change. Connections are saved in `~/Tapecut/config.json`, so they are yours and
+stay on this machine.
+
+> **macOS will block some folders.** Voice Memos, Desktop, Documents and
+> Downloads are privacy-protected, and a connected folder you cannot read shows
+> amber with an explanation. To use one, give **Full Disk Access** to whatever
+> runs Tapecut (System Settings → Privacy & Security → Full Disk Access — add
+> your Terminal, or the Python in `venv/bin`), then restart the server. See
+> [SETUP.md](SETUP.md#optional-connected-folders).
+
 **From Google Drive.** If you have set up an rclone remote — see
 [SETUP.md](SETUP.md) — the Drive tab lists your recordings. **Fetch & open**
 downloads one; **🎲 Random recording** picks one for you, preferring recordings

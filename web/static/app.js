@@ -159,7 +159,8 @@ $("rail-search").oninput = () => applyRailFilter();
 /** Filter whichever source list is showing. */
 function applyRailFilter() {
   const q = $("rail-search").value.trim().toLowerCase();
-  [["#drive-files", ".file-name"], ["#library-list", ".lib-name"]].forEach(([listSel, nameSel]) => {
+  [["#drive-files", ".file-name"], ["#library-list", ".lib-name"],
+   ["#folder-files", ".file-name"]].forEach(([listSel, nameSel]) => {
     const list = document.querySelector(listSel);
     if (!list) return;
     let shown = 0;
@@ -772,6 +773,160 @@ $("viewer").addEventListener("click", (e) => {
   if (e.target === $("viewer")) $("viewer").classList.add("hidden");
 });
 
+/* ---------------------------------------------------------------- folders */
+
+// A connected folder is somewhere an app keeps its recordings (Voice Memos, a
+// recorder's card, a sync folder). Tapecut reads them in place — nothing is
+// copied, and the owning app never sees a change.
+
+let folderOpen = null;          // path of the folder currently listed
+
+$("btn-folder-add").onclick = browseForFolder;
+
+async function refreshFolders() {
+  try {
+    const res = await fetch("/api/folders");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+
+    const chips = $("folder-chips");
+    chips.innerHTML = "";
+    data.folders.forEach((f) => {
+      const chip = document.createElement("span");
+      chip.className = "chip folder-chip"
+        + (f.path === folderOpen ? " is-on" : "")
+        + (f.readable ? "" : " is-blocked");
+      chip.title = f.readable ? f.path : f.problem;
+      chip.innerHTML = `<span class="folder-label">${escapeHtml(f.name)}</span>`
+        + '<button class="chip-x" title="Disconnect">✕</button>';
+      chip.querySelector(".folder-label").onclick = () => openFolder(f);
+      chip.querySelector(".chip-x").onclick = (e) => {
+        e.stopPropagation();
+        disconnectFolder(f);
+      };
+      chips.appendChild(chip);
+    });
+
+    // standard places worth one click; they disappear once connected
+    const sug = $("folder-suggestions");
+    sug.innerHTML = "";
+    data.suggestions.forEach((f) => {
+      const chip = document.createElement("span");
+      chip.className = "chip chip-suggest";
+      chip.textContent = "＋ " + f.name;
+      chip.title = `Connect ${f.path}`;
+      chip.onclick = () => connectFolder(f.path, f.name);
+      sug.appendChild(chip);
+    });
+
+    if (!data.folders.length && !data.suggestions.length) {
+      chips.innerHTML =
+        '<span class="muted">No folders connected yet — press ＋ Connect.</span>';
+    }
+  } catch (e) {
+    showFolderError(e.message);
+  }
+}
+
+async function connectFolder(path, name) {
+  showFolderError("");
+  try {
+    const f = await api("/api/folders", { path, name });
+    await refreshFolders();
+    openFolder(f);
+  } catch (e) {
+    showFolderError(e.message);
+  }
+}
+
+async function disconnectFolder(f) {
+  showFolderError("");
+  try {
+    await api("/api/folders", { path: f.path, remove: true });
+    if (folderOpen === f.path) { folderOpen = null; $("folder-files").innerHTML = ""; }
+    refreshFolders();
+  } catch (e) {
+    showFolderError(e.message);
+  }
+}
+
+async function browseForFolder() {
+  const btn = $("btn-folder-add");
+  showFolderError("");
+  btn.disabled = true;
+  setStatus("folder-status", "Finder window open — pick a folder…");
+  try {
+    const { job } = await api("/api/folders/browse", {});
+    const f = await pollJob(job);
+    setStatus("folder-status", "");
+    if (f.cancelled) return;
+    await refreshFolders();
+    openFolder(f);
+  } catch (e) {
+    setStatus("folder-status", "");
+    showFolderError(e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function openFolder(f) {
+  folderOpen = f.path;
+  showFolderError("");
+  refreshFolders();                       // repaint the selected chip
+  const box = $("folder-files");
+  box.innerHTML = '<div class="muted" style="padding:8px 4px">Reading…</div>';
+  try {
+    const res = await fetch(`/api/folders/list?path=${encodeURIComponent(f.path)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+
+    box.innerHTML = "";
+    if (!data.files.length) {
+      box.innerHTML =
+        '<div class="rail-empty">No recordings in this folder.</div>';
+      return;
+    }
+    data.files.forEach((file) => {
+      const row = document.createElement("div");
+      row.className = "file-row";
+      row.title = file.path;
+      row.innerHTML = `
+        <span class="file-name">${escapeHtml(file.name)}</span>
+        <span class="row-actions"></span>
+        <span class="file-meta">
+          ${file.transcribed ? '<span class="badge transcribed">transcript</span>' : ""}
+          ${(file.size / 1e6).toFixed(1)} MB · ${fmtDate(file.mtime)}
+        </span>`;
+      row.onclick = () => openLocalPath(file.path);
+      box.appendChild(row);
+    });
+    applyRailFilter();
+  } catch (e) {
+    box.innerHTML = "";
+    showFolderError(e.message);
+  }
+}
+
+async function openLocalPath(path) {
+  showFolderError("");
+  try {
+    loadRecording(await api("/api/open", { path }));
+  } catch (e) {
+    showFolderError(e.message);
+  }
+}
+
+function showFolderError(msg) {
+  const el = $("folder-error");
+  el.textContent = msg || "";
+  el.classList.toggle("hidden", !msg);
+}
+
+function fmtDate(epochSeconds) {
+  return new Date(epochSeconds * 1000).toISOString().slice(0, 10);
+}
+
 /* ---------------------------------------------------------------- close */
 
 $("btn-back").onclick = closeRecording;
@@ -782,7 +937,12 @@ $("btn-back").onclick = closeRecording;
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || state.editingIdx != null) return;
 
-  if (!$("viewer").classList.contains("hidden")) {
+  const menuOpen = [...document.querySelectorAll(".menu")]
+    .some((m) => !m.classList.contains("hidden"));
+
+  if (menuOpen) {
+    closeMenus();
+  } else if (!$("viewer").classList.contains("hidden")) {
     $("viewer").classList.add("hidden");
   } else if (!$("help-sheet").classList.contains("hidden")) {
     $("help-sheet").classList.add("hidden");
@@ -1629,17 +1789,16 @@ document.addEventListener("keydown", (e) => {
   } else if ((e.metaKey || e.ctrlKey) && e.key === "/") {
     e.preventDefault();
     toggleHelp($("help-sheet").classList.contains("hidden"));
-  } else if (e.key === "Escape") {
-    toggleHelp(false);
-    closeMenus();
-    $("viewer").classList.add("hidden");
   }
+  // Escape is handled by the ladder in the "close" section — a second handler
+  // here would race it, and which one won would depend on file order.
 });
 
 /* ---------------------------------------------------------------- startup */
 
 initDrive();
 refreshLibrary();
+refreshFolders();
 refreshCover();
 initAnalysisBackend();
 
