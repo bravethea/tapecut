@@ -183,3 +183,38 @@ def test_suggested_paths_carry_nothing_personal():
     for _name, path in folders.SUGGESTED:
         assert path.startswith("~/"), path
         assert "/Users/" not in path
+
+
+# ---------------------------------------------------------------- dropped files
+
+class TestUniquePath:
+    """Names for dropped files come from the browser, so they are untrusted."""
+
+    def test_uses_the_name_when_free(self, tmp_path):
+        assert library.unique_path(tmp_path, "memo.m4a") == tmp_path / "memo.m4a"
+
+    def test_numbers_a_collision_instead_of_overwriting(self, tmp_path):
+        (tmp_path / "memo.m4a").write_bytes(b"first")
+        got = library.unique_path(tmp_path, "memo.m4a")
+        assert got == tmp_path / "memo (2).m4a"
+        assert (tmp_path / "memo.m4a").read_bytes() == b"first"
+
+    def test_keeps_counting_past_the_second(self, tmp_path):
+        (tmp_path / "memo.m4a").touch()
+        (tmp_path / "memo (2).m4a").touch()
+        assert library.unique_path(tmp_path, "memo.m4a") == tmp_path / "memo (3).m4a"
+
+    def test_a_traversing_name_cannot_escape_the_directory(self, tmp_path):
+        got = library.unique_path(tmp_path, "../../etc/passwd")
+        assert got.parent == tmp_path
+        assert got.name == "passwd"
+
+    def test_an_absolute_name_cannot_escape_either(self, tmp_path):
+        got = library.unique_path(tmp_path, "/etc/hosts")
+        assert got.parent == tmp_path
+
+    @pytest.mark.parametrize("name", ["", ".", ".."])
+    def test_degenerate_names_get_a_real_one(self, tmp_path, name):
+        got = library.unique_path(tmp_path, name)
+        assert got.parent == tmp_path
+        assert got.name == "dropped"

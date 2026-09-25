@@ -24,9 +24,9 @@ model (~1.6 GB); after that it works with the network off.
 | **📝 Transcribe & get the text** | Read the transcript, correct mishearings, label who spoke, export TXT / Markdown / SRT / WebVTT. |
 | **🧠 Summarise & extract** | Meeting notes, decisions, action items, key points. |
 
-Recordings can come from a file on your Mac, a folder you connect once (the
-Voice Memos store, a field recorder, a sync folder), your own Google Drive, or
-anything you have already transcribed.
+Recordings can be dropped straight onto the window, or come from a file on your
+Mac, a folder you connect once (the Voice Memos store, a field recorder, a sync
+folder), your own Google Drive, or anything you have already transcribed.
 
 All three share one transcript, so you can switch between them at any time, and
 everything you do is saved against the recording — a transcript you summarise

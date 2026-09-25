@@ -176,6 +176,62 @@ def api_open():
     return jsonify(_open_payload(path))
 
 
+@app.get("/api/path-kind")
+def api_path_kind():
+    """
+    What is at this path — a recording, a folder, or nothing we can use?
+
+    A drop can carry a folder as easily as a file, and the browser's own
+    directory detection (webkitGetAsEntry) is awkward to rely on, so the client
+    asks here and branches on the answer.
+    """
+    path = Path(os.path.expanduser(request.args.get("path", "")))
+    if path.is_dir():
+        return jsonify({"kind": "folder", "path": str(path)})
+    if path.is_file():
+        kind = "media" if path.suffix.lower() in SUPPORTED_FORMATS else "other"
+        return jsonify({"kind": kind, "path": str(path)})
+    return jsonify({"kind": "missing", "path": str(path)})
+
+
+@app.post("/api/upload")
+def api_upload():
+    """
+    Take a file dropped onto the window and open it.
+
+    A dropped file reaches a web page as bytes, not as a path — browsers will
+    not tell a page where a file lives — so unlike every other way of opening a
+    recording this one has to keep a copy. It goes to ~/Tapecut/dropped, which
+    is never auto-pruned: for a file dragged off a phone or a memory card this
+    may be the only copy left.
+
+    The client tries the file's real path first and only falls back here, so
+    dropping something already on disk still costs nothing.
+    """
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        return jsonify({"error": "No file in the drop."}), 400
+
+    suffix = Path(upload.filename).suffix.lower()
+    if suffix not in SUPPORTED_FORMATS:
+        return jsonify({"error":
+            f"Unsupported format: {suffix or '(no extension)'}. Supported: "
+            + ", ".join(sorted(e.lstrip(".") for e in SUPPORTED_FORMATS))}), 400
+
+    library.ensure_dirs()
+    dest = library.unique_path(library.DROPPED_DIR, upload.filename)
+    try:
+        upload.save(dest)                 # werkzeug streams; never held in RAM
+    except OSError as e:
+        return jsonify({"error": f"Could not save the dropped file: {e}"}), 500
+
+    if dest.stat().st_size == 0:
+        dest.unlink(missing_ok=True)
+        return jsonify({"error": "That file arrived empty."}), 400
+
+    return jsonify(_open_payload(dest))
+
+
 BROWSE_FOLDER_SCRIPT = """
 try
     tell application "System Events"

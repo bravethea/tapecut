@@ -27,6 +27,10 @@ TRANSCRIPTS_DIR = APP_DIR / "transcripts"
 CACHE_DIR = APP_DIR / "cache"
 EXPORTS_DIR = APP_DIR / "exports"
 ASSETS_DIR = APP_DIR / "assets"      # cover images for audio→video export
+# Files dropped onto the window, which arrive as bytes rather than a path (a
+# browser will not tell a page where a dropped file lives). Never auto-pruned:
+# unlike the Drive cache this may be the only copy the user has.
+DROPPED_DIR = APP_DIR / "dropped"
 CONFIG_PATH = APP_DIR / "config.json"
 
 # Shipped defaults only. Whatever you set in ~/Tapecut/config.json wins, and
@@ -38,8 +42,32 @@ DEFAULT_CONFIG = {
 
 
 def ensure_dirs() -> None:
-    for d in (APP_DIR, TRANSCRIPTS_DIR, CACHE_DIR, EXPORTS_DIR, ASSETS_DIR):
+    for d in (APP_DIR, TRANSCRIPTS_DIR, CACHE_DIR, EXPORTS_DIR, ASSETS_DIR,
+              DROPPED_DIR):
         d.mkdir(parents=True, exist_ok=True)
+
+
+def unique_path(directory: Path, filename: str) -> Path:
+    """
+    A free path in `directory` for `filename`, never escaping that directory.
+
+    The name comes from the browser, so it is untrusted: strip any directory
+    parts, refuse the empty/dot cases, and add " (2)", " (3)"… rather than
+    overwrite a file already sitting there.
+    """
+    stem_name = Path(filename).name                  # drops "../" and any dirs
+    if stem_name in ("", ".", ".."):
+        stem_name = "dropped"
+    candidate = directory / stem_name
+    if not candidate.exists():
+        return candidate
+
+    stem, suffix = candidate.stem, candidate.suffix
+    for n in range(2, 1000):
+        candidate = directory / f"{stem} ({n}){suffix}"
+        if not candidate.exists():
+            return candidate
+    return directory / f"{stem} ({int(time.time())}){suffix}"
 
 
 def load_config() -> dict:

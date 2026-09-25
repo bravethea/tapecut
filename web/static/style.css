@@ -579,6 +579,25 @@ body.show-pause-times .pause.cut {
 }
 .cover-item:hover .del { display: block; }
 
+/* ─────────────────────────── drop target ──────────────────────────────── */
+
+#drop-zone {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: var(--scrim);
+  pointer-events: none;      /* the drop lands on the document, not on this */
+}
+.drop-card {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 34px 44px; text-align: center;
+  background: var(--raised); border: 2px dashed var(--accent);
+  border-radius: 16px; box-shadow: var(--shadow-lg);
+  max-width: 100%;
+}
+.drop-card b { font-size: 16px; }
+.drop-icon { font-size: 30px; line-height: 1; color: var(--accent); }
+
 #save-dot {
   position: fixed; right: 14px; bottom: 11px; font-size: 14px;
   color: var(--ok); opacity: 0; transition: opacity .4s; pointer-events: none;

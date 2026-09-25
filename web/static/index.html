@@ -98,8 +98,13 @@
         <span class="label grow">Folders</span>
         <button id="btn-folder-add" class="ghost sm" title="Connect a folder">＋ Connect</button>
       </div>
+      <p class="muted rail-foot">Places you keep recordings — click one to list
+        what is in it. Files stay where they are.</p>
       <div id="folder-chips" class="chips"></div>
-      <div id="folder-suggestions" class="chips"></div>
+      <div id="folder-suggest-wrap" class="hidden">
+        <p class="muted rail-foot">Add a place:</p>
+        <div id="folder-suggestions" class="chips"></div>
+      </div>
       <div id="folder-files" class="rail-list"></div>
       <div id="folder-error" class="error hidden"></div>
       <div id="folder-status" class="status hidden"></div>
@@ -332,6 +337,14 @@
       <button id="viewer-close" class="ghost sm">Close</button>
     </div>
     <div id="viewer-cols"></div>
+  </div>
+</div>
+
+<div id="drop-zone" class="hidden" aria-hidden="true">
+  <div class="drop-card">
+    <div class="drop-icon">⤓</div>
+    <b id="drop-title">Drop to open</b>
+    <span class="muted">audio or video — or a folder to connect</span>
   </div>
 </div>
 

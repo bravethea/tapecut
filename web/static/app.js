@@ -773,6 +773,139 @@ $("viewer").addEventListener("click", (e) => {
   if (e.target === $("viewer")) $("viewer").classList.add("hidden");
 });
 
+/* ---------------------------------------------------------------- drop */
+
+// Drop a recording anywhere on the window to open it.
+//
+// A browser hands a page the file's BYTES, never its location — so the obvious
+// implementation uploads a copy of everything, which for a 2 GB video is an
+// absurd price for a file already sitting on the disk. Finder drags do usually
+// carry a file:// URL alongside the bytes, so we try that path first and only
+// upload when there isn't one. Same file either way; one route just costs
+// nothing.
+
+let dragDepth = 0;            // dragenter/leave fire per element, so count them
+
+function dropHasFiles(e) {
+  return [...(e.dataTransfer?.types || [])].includes("Files");
+}
+
+function showDropZone(on, title) {
+  $("drop-zone").classList.toggle("hidden", !on);
+  if (title) $("drop-title").textContent = title;
+}
+
+window.addEventListener("dragenter", (e) => {
+  if (!dropHasFiles(e)) return;
+  e.preventDefault();
+  dragDepth++;
+  showDropZone(true, "Drop to open");
+});
+
+window.addEventListener("dragover", (e) => {
+  if (!dropHasFiles(e)) return;
+  e.preventDefault();                       // without this the browser
+  e.dataTransfer.dropEffect = "copy";       // navigates to the file instead
+});
+
+window.addEventListener("dragleave", (e) => {
+  if (!dropHasFiles(e)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) showDropZone(false);
+});
+
+window.addEventListener("drop", async (e) => {
+  if (!dropHasFiles(e)) return;
+  e.preventDefault();
+  dragDepth = 0;
+  showDropZone(false);
+
+  // dataTransfer is emptied once this handler yields, so read it all up front.
+  const files = [...(e.dataTransfer.files || [])];
+  const paths = localPathsFromDrop(e.dataTransfer);
+
+  if (files.length > 1 || paths.length > 1) {
+    setJob(`Opening ${files[0]?.name || "the first one"} — one at a time`, "done");
+  }
+
+  // When the drop told us where it came from, let the server say what is
+  // there. A folder is worth connecting; guessing from the browser's side
+  // (a dropped folder still arrives as a zero-byte "file") gets it wrong.
+  if (paths.length) {
+    try {
+      const res = await fetch(`/api/path-kind?path=${encodeURIComponent(paths[0])}`);
+      const { kind } = await res.json();
+      if (kind === "folder") { await connectDroppedFolder(paths[0]); return; }
+      if (kind === "media") {
+        loadRecording(await api("/api/open", { path: paths[0] }));
+        return;
+      }
+    } catch {
+      /* fall through to the bytes we were given */
+    }
+  }
+
+  if (!files.length) {
+    setJob("Nothing in that drop Tapecut can open", "fail");
+    return;
+  }
+  // A folder dropped without a usable path arrives as a zero-byte entry.
+  if (!files[0].size && !files[0].type) {
+    setJob("Use ＋ Connect for a folder", "fail");
+    return;
+  }
+  await uploadDropped(files[0]);
+});
+
+/** Finder drags usually carry the real location next to the bytes. */
+function localPathsFromDrop(dt) {
+  const raw = (dt.getData("text/uri-list") || dt.getData("text/plain") || "");
+  return raw
+    .split(/[\r\n]+/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("file://"))
+    .map((line) => {
+      try { return decodeURIComponent(new URL(line).pathname); }
+      catch { return ""; }
+    })
+    .filter(Boolean);
+}
+
+/** Bytes only: keep a copy in ~/Tapecut/dropped and open that. */
+async function uploadDropped(file) {
+  const mb = (file.size / 1e6).toFixed(0);
+  setJob(`Copying ${file.name}${file.size > 5e6 ? ` (${mb} MB)` : ""}…`);
+  try {
+    const body = new FormData();
+    body.append("file", file, file.name);
+    const res = await fetch("/api/upload", { method: "POST", body });
+    const info = await res.json();
+    if (!res.ok) throw new Error(info.error || res.statusText);
+    setJob(`Opened ${info.name}`, "done");
+    loadRecording(info);
+  } catch (err) {
+    setJob(`Could not open ${file.name}: ${err.message}`, "fail");
+  }
+}
+
+async function connectDroppedFolder(path) {
+  document.querySelector('.rail-tab[data-src="local"]')?.click();
+  let entry;
+  try {
+    entry = await api("/api/folders", { path });
+    setJob(`Connected ${entry.name}`, "done");
+  } catch (err) {
+    // Dropping a folder you already connected should just open it, not scold.
+    if (!/already connected/i.test(err.message)) {
+      setJob(`Could not connect that folder: ${err.message}`, "fail");
+      return;
+    }
+    entry = { path };
+  }
+  await refreshFolders();
+  openFolder(entry);
+}
+
 /* ---------------------------------------------------------------- folders */
 
 // A connected folder is somewhere an app keeps its recordings (Voice Memos, a
@@ -796,7 +929,9 @@ async function refreshFolders() {
       chip.className = "chip folder-chip"
         + (f.path === folderOpen ? " is-on" : "")
         + (f.readable ? "" : " is-blocked");
-      chip.title = f.readable ? f.path : f.problem;
+      chip.title = f.readable
+        ? `List the recordings in ${f.path}`
+        : `${f.path}\n\n${f.problem}`;
       chip.innerHTML = `<span class="folder-label">${escapeHtml(f.name)}</span>`
         + '<button class="chip-x" title="Disconnect">✕</button>';
       chip.querySelector(".folder-label").onclick = () => openFolder(f);
@@ -810,6 +945,7 @@ async function refreshFolders() {
     // standard places worth one click; they disappear once connected
     const sug = $("folder-suggestions");
     sug.innerHTML = "";
+    $("folder-suggest-wrap").classList.toggle("hidden", !data.suggestions.length);
     data.suggestions.forEach((f) => {
       const chip = document.createElement("span");
       chip.className = "chip chip-suggest";
@@ -821,7 +957,13 @@ async function refreshFolders() {
 
     if (!data.folders.length && !data.suggestions.length) {
       chips.innerHTML =
-        '<span class="muted">No folders connected yet — press ＋ Connect.</span>';
+        '<span class="muted">No places yet — press ＋ Connect, or drop a folder'
+        + ' onto the window.</span>';
+    }
+    if (!folderOpen) {
+      $("folder-files").innerHTML = data.folders.length
+        ? '<div class="rail-empty">Click a place above to see its recordings.</div>'
+        : "";
     }
   } catch (e) {
     showFolderError(e.message);

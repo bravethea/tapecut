@@ -74,6 +74,17 @@ dialog. (A browser `<input type=file>` cannot tell the server where a file is on
 disk, so Tapecut asks macOS directly — which works only because the server is
 running on your own machine.) You can also paste a path.
 
+**By dropping it on the window.** Drag a recording from Finder onto Tapecut and
+it opens. If the drop tells Tapecut where the file lives — Finder drags usually
+do — it is opened where it sits and nothing is copied. If it does not (some
+apps hand over only the bytes, which is all a web page is normally given),
+Tapecut keeps a copy in `~/Tapecut/dropped` and opens that. Either way you get
+the same recording; only one route costs disk space, and that folder is never
+auto-pruned, since for a file dragged off a phone or a card it may be the only
+copy left.
+
+Dropping a **folder** connects it, as below.
+
 **From a connected folder.** Apps that record for you keep their files
 somewhere fixed and usually awkward — Voice Memos buries its recordings deep in
 `~/Library`, a field recorder shows up as a memory card. Connect the folder once

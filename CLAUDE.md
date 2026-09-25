@@ -68,6 +68,15 @@ macOS TCC blocks several interesting folders (Voice Memos, Desktop, Documents,
 Downloads) until the user grants Full Disk Access, so `folders.readable()`
 returns a reason and the UI shows it. Never let a blocked folder read as empty.
 
+**A dropped file may arrive without a path.** Browsers hand a page bytes, not
+locations, so `app.js`'s drop handler reads `text/uri-list` first and asks
+`GET /api/path-kind` what is there — a folder gets connected, a recording gets
+opened in place. Only when there is no usable path does it `POST /api/upload`,
+which copies into `~/Tapecut/dropped` (never auto-pruned; it can be the only
+copy). Don't "simplify" this into always uploading — that copies gigabytes for
+files already on disk. Upload filenames are untrusted: `library.unique_path()`
+strips directory parts and never overwrites.
+
 **Two persistence layers.** The browser UI writes to the library
 (`core/library.py` → `~/Tapecut/transcripts`, JSON + a readable `.txt`), keyed on
 **filename + size** — so renaming a file makes Tapecut treat it as a new
