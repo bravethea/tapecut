@@ -1335,8 +1335,16 @@ $("btn-transcribe").onclick = async () => {
       language: $("lang-select").value,
     });
     const data = await pollJob(job, (j) => {
-      setStatus("transcribe-status", `Transcribing… ${Math.round(j.elapsed)}s`);
-      setJob(`Transcribing… ${fmtTime(j.elapsed)}`);
+      // progress arrives once recognition starts (after voice detection);
+      // a time-left guess needs a few percent behind it to mean anything
+      let pct = "", left = "";
+      if (j.progress != null) {
+        pct = ` ${Math.round(j.progress * 100)}%`;
+        if (j.progress >= 0.05 && j.progress < 1)
+          left = ` · about ${fmtTime(j.elapsed / j.progress * (1 - j.progress))} left`;
+      }
+      setStatus("transcribe-status", `Transcribing…${pct} — ${fmtTime(j.elapsed)}${left}`);
+      setJob(`Transcribing…${pct || " " + fmtTime(j.elapsed)}`);
     });
     loadWords(data.words);
     const marked = await autoMarkDisfluencies();

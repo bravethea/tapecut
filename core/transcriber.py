@@ -18,6 +18,8 @@ large-v3 (~20 s), subsequent ones reuse it if the prompt didn't change.
 """
 import gc
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 from PyQt6.QtCore import QThread, pyqtSignal
@@ -35,6 +37,27 @@ MODEL_NAME = "large-v3"
 DEVICE = "cpu"            # CTranslate2 has no Metal backend; CPU is the way on macOS
 COMPUTE_TYPE = "float32"  # int8 is faster but has been less reliable here
 BATCH_SIZE = 2
+
+
+def _cpu_threads() -> int:
+    """
+    CPU threads for CTranslate2. whisperX defaults to 4, which leaves most of
+    a modern Mac idle; use the performance cores on Apple Silicon (adding the
+    slower efficiency cores to a lock-step decode doesn't help) and every core
+    elsewhere.
+    """
+    if sys.platform == "darwin":
+        try:
+            out = subprocess.run(["sysctl", "-n", "hw.perflevel0.physicalcpu"],
+                                 capture_output=True, text=True, timeout=5).stdout.strip()
+            if out.isdigit() and int(out) > 0:
+                return int(out)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return max(4, os.cpu_count() or 4)
+
+
+CPU_THREADS = _cpu_threads()
 MODEL_CACHE = Path.home() / ".cache" / "huggingface" / "hub"
 
 # whisperx decodes via ffmpeg, so video containers work directly too
@@ -72,14 +95,16 @@ def _load_asr_model(initial_prompt: str | None, hotwords: str | None):
     gc.collect()
     asr_options = {"initial_prompt": initial_prompt, "hotwords": hotwords}
     model = whisperx.load_model(
-        MODEL_NAME, DEVICE, compute_type=COMPUTE_TYPE, asr_options=asr_options
+        MODEL_NAME, DEVICE, compute_type=COMPUTE_TYPE, asr_options=asr_options,
+        threads=CPU_THREADS,
     )
     _asr_cache.update(key=key, model=model)
     return model
 
 
 def transcribe(audio_path: str, initial_prompt: str | None = None,
-               language: str = "en", verbatim: bool = True) -> list[dict]:
+               language: str = "en", verbatim: bool = True,
+               progress=None) -> list[dict]:
     """
     Synchronous transcription. Returns a flat list of word dicts:
         [{"word": str, "start": float, "end": float, "probability": float,
@@ -95,6 +120,10 @@ def transcribe(audio_path: str, initial_prompt: str | None = None,
     natural sentence and leaks far less.
 
     Language defaults to English; pass None/"" for auto-detection.
+
+    `progress`, if given, is called with a fraction 0–1 as 30 s chunks finish.
+    Recognition is reported up to 0.9; word alignment, which has no progress
+    of its own, is the last tenth.
     """
     import whisperx
 
@@ -107,7 +136,8 @@ def transcribe(audio_path: str, initial_prompt: str | None = None,
     model = _load_asr_model(prompt, hotwords)
     audio = whisperx.load_audio(audio_path)
     result = model.transcribe(
-        audio, batch_size=BATCH_SIZE, language=language or None, chunk_size=30
+        audio, batch_size=BATCH_SIZE, language=language or None, chunk_size=30,
+        progress_callback=(lambda pct: progress(0.9 * pct / 100)) if progress else None,
     )
 
     lang = result["language"]

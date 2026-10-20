@@ -50,6 +50,15 @@ app = Flask(__name__)
 
 _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
+_job_local = threading.local()     # which job the current thread is running
+
+
+def _report_progress(fraction: float) -> None:
+    """Call from inside a job; the client sees it as `progress`, 0–1."""
+    job_id = getattr(_job_local, "job_id", None)
+    if job_id:
+        with _jobs_lock:
+            _jobs[job_id]["progress"] = round(min(max(fraction, 0.0), 1.0), 3)
 
 
 def _start_job(target, *args) -> str:
@@ -58,6 +67,7 @@ def _start_job(target, *args) -> str:
         _jobs[job_id] = {"status": "running", "started": time.time()}
 
     def run():
+        _job_local.job_id = job_id
         try:
             result = target(*args)
             with _jobs_lock:
@@ -694,7 +704,7 @@ def api_transcribe():
     source = data.get("source", str(path))
 
     def work():
-        words = transcribe(str(path), prompt, language)
+        words = transcribe(str(path), prompt, language, progress=_report_progress)
         library.save(str(path), words, prompt or "", source)
         return {"words": words}
 
@@ -897,6 +907,8 @@ def api_job(job_id):
             "status": job["status"],
             "elapsed": round(time.time() - job["started"], 1),
         }
+        if "progress" in job:
+            payload["progress"] = job["progress"]
         if job["status"] == "done":
             payload.update(job["result"])
         elif job["status"] == "error":
