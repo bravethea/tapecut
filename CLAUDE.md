@@ -12,8 +12,7 @@ real app) and an older PyQt6 desktop window (maintained, not grown).
 ## Commands
 
 ```bash
-venv/bin/python -m web.server            # browser UI on http://127.0.0.1:8756
-PORT=9000 venv/bin/python -m web.server  # different port
+PORT=8757 venv/bin/python -m web.server  # dev server (see below)
 venv/bin/python main.py                  # native desktop window
 
 venv/bin/python -m pytest tests/ -q                          # all tests
@@ -21,6 +20,22 @@ venv/bin/python -m pytest tests/test_audio_editor.py -q      # one file
 venv/bin/python -m pytest tests/test_audio_editor.py::test_name -q
 venv/bin/python -m pytest tests/ -q -k pause                 # by keyword
 ```
+
+### Development never touches the installed app
+
+The app people use day to day is a separate install: `scripts/install.sh` puts
+a checkout of **`main`** in `~/Tapecut/app`, and Tapecut.app runs that on port
+**8756**. This checkout is for development:
+
+- Work on the **`dev`** branch. `main` is what the installer and every user
+  pull, so it changes only when a finished change is merged in on request.
+- Run the dev server on port **8757** (the `tapecut-dev` launch config). Never
+  stop, restart or `kill` whatever is on 8756 — that is someone's running
+  app, and its jobs (a long transcription) live only in its memory.
+- Never run `scripts/make-app.sh` from this checkout; it would repoint
+  Tapecut.app here. The installed copy updates by re-running the installer.
+- Both servers share `~/Tapecut` (library, config, caches), so a dev bug can
+  still damage saved transcripts — test destructive changes on copies.
 
 Always use `venv/bin/python`, not a bare `python`. There is no linter, no build
 step and no pytest config — `web/static/` is plain HTML/CSS/JS, so edit and
