@@ -124,11 +124,26 @@ function setJob(text, kind = "run") {
   if (kind !== "run") jobTimer = setTimeout(() => chip.classList.add("hidden"), 12000);
 }
 
+/* Jobs live in the server's memory, so a server restart ends them. Say so
+   plainly instead of surfacing "Load failed" or polling a vanished job forever;
+   a few seconds of no answer is tolerated in case it was only a blip. */
+const JOB_LOST = "Tapecut's server restarted while this was running, so it " +
+                 "stopped. Start it again.";
+
 function pollJob(jobId, onTick) {
   return new Promise((resolve, reject) => {
+    let misses = 0;
     const tick = async () => {
+      let res;
       try {
-        const res = await fetch(`/api/job/${jobId}`);
+        res = await fetch(`/api/job/${jobId}`);
+      } catch {
+        if (++misses > 10) return reject(new Error(JOB_LOST));
+        return setTimeout(tick, 1000);
+      }
+      misses = 0;
+      if (res.status === 404) return reject(new Error(JOB_LOST));
+      try {
         const data = await res.json();
         if (data.status === "done") return resolve(data);
         if (data.status === "error") return reject(new Error(data.error));
