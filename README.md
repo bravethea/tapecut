@@ -50,6 +50,19 @@ Optional:
 
 ## Install
 
+The quick way, if you have [Homebrew](https://brew.sh) — paste this into
+Terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bravethea/tapecut/main/scripts/install.sh | bash
+```
+
+It installs ffmpeg and Python 3.13, puts Tapecut in `~/Tapecut/app`, sets up
+its Python packages (a few GB) and adds **Tapecut.app** to your Applications.
+Run it again any time to update.
+
+Or by hand:
+
 ```bash
 git clone https://github.com/bravethea/tapecut.git
 cd tapecut
@@ -67,6 +80,18 @@ venv/bin/python -m web.server
 
 Then open **<http://127.0.0.1:8756>**. It listens on localhost only; nothing is
 exposed to your network.
+
+To start it like any other Mac app instead, build a launcher once (the
+installer above already did):
+
+```bash
+scripts/make-app.sh
+```
+
+That puts **Tapecut.app** in `/Applications` (pass another folder to put it
+elsewhere). Clicking it starts the server if it isn't running and opens the
+page; the server log is `~/Tapecut/logs/server.log`. The app runs this
+checkout, so code changes need no rebuild — only moving the folder does.
 
 There is also an older native desktop window, which does editing and export but
 none of the library, Drive, speaker or summarising features:
