@@ -246,6 +246,16 @@
 
       <div id="export-status" class="status hidden"></div>
 
+      <div id="transcript-head">
+        <span class="label">Transcript</span>
+        <span id="transcript-count" class="muted"></span>
+        <span class="spacer"></span>
+        <span class="muted fold-tip">drag the bottom edge to resize</span>
+        <button id="btn-transcript-fold" class="ghost sm" aria-expanded="false"
+                aria-controls="transcript" title="Expand the transcript (⌘⇧T)">
+          <span id="fold-caret">⤢</span> Expand
+        </button>
+      </div>
       <div id="transcript"></div>
       <p id="help" class="hint">Click a word to cut it · drag for a range ·
         <b>⌥</b>-click to restore · right-click to fix the text ·
@@ -311,6 +321,7 @@
       <dt>Space</dt><dd>play / pause the preview</dd>
       <dt>⌘Z</dt><dd>undo</dd>
       <dt>esc</dt><dd>back out — a sheet, then a filler review, then the recording</dd>
+      <dt>⌘⇧T</dt><dd>shrink / expand the transcript</dd>
       <dt>⌘/</dt><dd>this list</dd>
     </dl>
     <p class="muted">Pause markers in the text are silences — click one to trim it

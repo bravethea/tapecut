@@ -423,6 +423,14 @@ label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 4
 
 /* ─────────────────────────── transcript ───────────────────────────────── */
 
+#transcript-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+}
+#transcript-head .fold-tip { opacity: .7; }
+#fold-caret { display: inline-block; font-size: 11px; }
+@media (max-width: 700px) { #transcript-head .fold-tip { display: none; } }
+
 #transcript {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -433,6 +441,18 @@ label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 4
   user-select: none;
   cursor: pointer;
   min-height: 140px;
+  /* Scrolls inside its own box by default, so a 1,200-word transcript never
+     buries the panels under it. Expand lifts the cap; the bottom edge drags
+     to any height in between. */
+  max-height: 55vh;
+  overflow: auto;
+  resize: vertical;
+  overscroll-behavior: contain;
+}
+#transcript.expanded {
+  max-height: none;
+  height: auto !important;   /* beat a height left behind by dragging */
+  resize: none;
 }
 #transcript:empty::before {
   content: "Transcribe this recording to see its words here.";

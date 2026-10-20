@@ -196,6 +196,27 @@ $("btn-theme").onclick = () => {
 };
 try { applyTheme(localStorage.getItem(THEME_KEY)); } catch { applyTheme(null); }
 
+/* The transcript scrolls inside its own box; Expand lifts the cap when you
+   want to read it whole. Default is capped so the output panels stay close. */
+const EXPAND_KEY = "tapecut-transcript-expanded";
+
+function setTranscriptExpanded(expanded) {
+  const box = $("transcript");
+  box.classList.toggle("expanded", expanded);
+  if (expanded) box.style.height = "";        // drop any dragged height
+  $("fold-caret").textContent = expanded ? "⤡" : "⤢";
+  $("btn-transcript-fold").lastChild.textContent = expanded ? " Collapse" : " Expand";
+  $("btn-transcript-fold").setAttribute("aria-expanded", String(expanded));
+  $("btn-transcript-fold").title = expanded
+    ? "Collapse the transcript (⌘⇧T)" : "Expand the transcript (⌘⇧T)";
+  try { localStorage.setItem(EXPAND_KEY, expanded ? "1" : "0"); } catch {}
+}
+
+$("btn-transcript-fold").onclick = () =>
+  setTranscriptExpanded(!$("transcript").classList.contains("expanded"));
+
+try { setTranscriptExpanded(localStorage.getItem(EXPAND_KEY) === "1"); } catch {}
+
 /* help sheet */
 const toggleHelp = (on) => $("help-sheet").classList.toggle("hidden", !on);
 $("btn-help").onclick = () => toggleHelp(true);
@@ -1403,6 +1424,8 @@ function renderTranscript() {
   updatePauseButton();
   updateStats();
   renderSpeakerBar();
+  const n = state.words.length;
+  $("transcript-count").textContent = n ? `${n.toLocaleString()} words` : "";
 }
 
 /* ---------------------------------------------------------------- speakers */
@@ -1928,6 +1951,9 @@ document.addEventListener("keydown", (e) => {
   } else if ((e.metaKey || e.ctrlKey) && e.key === "z" && !typing) {
     e.preventDefault();
     undo();
+  } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "t") {
+    e.preventDefault();
+    setTranscriptExpanded(!$("transcript").classList.contains("expanded"));
   } else if ((e.metaKey || e.ctrlKey) && e.key === "/") {
     e.preventDefault();
     toggleHelp($("help-sheet").classList.contains("hidden"));
