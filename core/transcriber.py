@@ -85,17 +85,24 @@ def transcribe(audio_path: str, initial_prompt: str | None = None,
         [{"word": str, "start": float, "end": float, "probability": float,
           "deleted": False}, ...]
 
-    The user's vocabulary prompt is passed as faster-whisper hotwords (log-prob
-    boost) and, together with the verbatim primer, as initial_prompt (style +
-    context for every 30 s chunk). Language defaults to English; pass None/""
-    for auto-detection.
+    The vocabulary hint goes to faster-whisper `hotwords` ONLY — it boosts those
+    words' log-probabilities without ever entering the token stream. It must
+    never be put in `initial_prompt`: whisperX injects that into every 30 s
+    chunk, and Whisper will happily transcribe a comma-separated list as if it
+    were speech. Doing that once produced 2,747 echoes of the hint across a
+    batch of recordings — the word list, recited mid-sentence, again and again.
+    `initial_prompt` therefore carries only the verbatim primer, which is a
+    natural sentence and leaks far less.
+
+    Language defaults to English; pass None/"" for auto-detection.
     """
     import whisperx
 
     vocab = (initial_prompt or "").strip()
-    # hotwords carry only the user's own terms — priming words must not be boosted
+    # hotwords: the user's terms, boosted but never emitted
     hotwords = ", ".join(t.strip() for t in vocab.replace("\n", ",").split(",") if t.strip()) or None
-    prompt = f"{VERBATIM_PRIMER} {vocab}".strip() if verbatim else (vocab or None)
+    # initial_prompt: style only, never the word list
+    prompt = VERBATIM_PRIMER if verbatim else None
 
     model = _load_asr_model(prompt, hotwords)
     audio = whisperx.load_audio(audio_path)
@@ -132,8 +139,92 @@ def transcribe(audio_path: str, initial_prompt: str | None = None,
             })
             prev_end = words[-1]["end"]
 
+    words = drop_prompt_echo(words, [prompt, hotwords])
+    words = collapse_loops(words)
     gc.collect()
     return words
+
+
+def _norm_token(text: str) -> str:
+    return "".join(ch for ch in text.lower() if ch.isalnum())
+
+
+def drop_prompt_echo(words: list[dict], prompts, min_run: int = 5) -> list[dict]:
+    """
+    Remove runs where Whisper transcribed the prompt instead of the speech.
+
+    Only a run of `min_run`+ words that follows the prompt's own word order is
+    dropped, so a real mention of one prompt word ("the HELIOS dataset") is
+    always kept — people say those words, they just never recite the whole list.
+    """
+    sequences = []
+    for p in prompts:
+        toks = [_norm_token(t) for t in (p or "").split() if _norm_token(t)]
+        if len(toks) >= min_run:
+            sequences.append(toks)
+    if not sequences or not words:
+        return words
+
+    drop = set()
+    norm = [_norm_token(w["word"]) for w in words]
+    for seq in sequences:
+        positions = {tok: i for i, tok in enumerate(seq)}
+        i = 0
+        while i < len(norm):
+            if norm[i] not in positions:
+                i += 1
+                continue
+            # walk forward while the words keep advancing through the prompt
+            j, last = i, positions[norm[i]] - 1
+            run = []
+            while j < len(norm) and norm[j] in positions and positions[norm[j]] > last:
+                last = positions[norm[j]]
+                run.append(j)
+                j += 1
+            if len(run) >= min_run:
+                drop.update(run)
+                i = j
+            else:
+                i += 1
+    return [w for k, w in enumerate(words) if k not in drop]
+
+
+def collapse_loops(words: list[dict], max_repeats: int = 2, max_phrase: int = 6) -> list[dict]:
+    """
+    Collapse Whisper's stuck-loop output — the same short phrase emitted over
+    and over ("Um, so, um, yeah. Um, so, um, yeah. …"). It happens on quiet or
+    low-confidence audio and is model noise, not speech.
+
+    A phrase must repeat more than `max_repeats` times back-to-back before any
+    copy is dropped, and the first `max_repeats` are always kept, so deliberate
+    repetition ("very, very", "more and more") survives untouched.
+    """
+    if not words:
+        return words
+
+    norm = [_norm_token(w["word"]) for w in words]
+    drop = set()
+    i = 0
+    while i < len(norm):
+        for size in range(max_phrase, 0, -1):          # longest phrase first
+            block = norm[i:i + size]
+            if len(block) < size or not any(block):
+                continue
+            reps = 1
+            j = i + size
+            while norm[j:j + size] == block:
+                reps += 1
+                j += size
+            if reps > max_repeats:
+                drop.update(range(i + size * max_repeats, j))
+                i = j
+                break
+        else:
+            i += 1
+            continue
+        if not drop:
+            i += 1
+    return [w for k, w in enumerate(words) if k not in drop]
 
 
 class TranscriberThread(QThread):
