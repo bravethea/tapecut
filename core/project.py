@@ -30,13 +30,13 @@ def save_project(media_path: str, words: list[dict], prompt: str = "") -> Path:
         "saved_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "words": words,
     }
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=1))
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
     return path
 
 
 def load_project(media_path: str) -> dict:
     """Returns {"words": [...], "prompt": str}. Raises on missing/corrupt file."""
-    data = json.loads(sidecar_path(media_path).read_text())
+    data = json.loads(sidecar_path(media_path).read_text(encoding="utf-8"))
     words = data["words"]
     for w in words:  # ensure required keys exist
         w.setdefault("deleted", False)

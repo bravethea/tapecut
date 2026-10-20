@@ -25,6 +25,7 @@ listing reports `readable` and the UI can say so instead of showing an empty
 folder and looking broken.
 """
 import os
+import sys
 from pathlib import Path
 
 from core import library
@@ -57,7 +58,7 @@ def _tidy(path: str) -> str:
     """Store paths home-relative, so a config survives a different username."""
     p = _expand(path)
     try:
-        return "~/" + str(p.relative_to(Path.home()))
+        return "~/" + p.relative_to(Path.home()).as_posix()
     except ValueError:
         return str(p)
 
@@ -72,6 +73,8 @@ def readable(path: str) -> tuple[bool, str]:
     try:
         next(p.iterdir(), None)
     except PermissionError:
+        if sys.platform != "darwin":
+            return False, "You don't have permission to read this folder."
         return False, (
             "macOS is blocking this folder. Give Full Disk Access to whatever "
             "runs Tapecut (System Settings → Privacy & Security → Full Disk "

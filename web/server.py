@@ -260,28 +260,73 @@ end try
 """
 
 
+# Windows: the same dialogs through Windows Forms. TopMost owner so the
+# dialog comes up in front of the browser rather than behind it.
+WIN_PICK_FILE = """
+Add-Type -AssemblyName System.Windows.Forms
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+$d = New-Object System.Windows.Forms.OpenFileDialog
+$d.Title = 'Choose a recording'
+$d.Filter = 'Recordings|{patterns}|All files|*.*'
+$d.InitialDirectory = [Environment]::GetFolderPath('UserProfile')
+$owner = New-Object System.Windows.Forms.Form -Property @{{TopMost = $true}}
+if ($d.ShowDialog($owner) -eq 'OK') {{ $d.FileName }} else {{ '__CANCELLED__' }}
+"""
+
+WIN_PICK_FOLDER = """
+Add-Type -AssemblyName System.Windows.Forms
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+$d = New-Object System.Windows.Forms.FolderBrowserDialog
+$d.Description = 'Choose a folder of recordings'
+$d.SelectedPath = [Environment]::GetFolderPath('UserProfile')
+$owner = New-Object System.Windows.Forms.Form -Property @{TopMost = $true}
+if ($d.ShowDialog($owner) -eq 'OK') { $d.SelectedPath } else { '__CANCELLED__' }
+"""
+
+
+def _native_pick(kind: str) -> str | None:
+    """
+    Show the OS's own Open dialog for a "file" or a "folder" and return the
+    chosen path, or None if the user cancelled.
+    """
+    if sys.platform == "darwin":
+        cmd = ["osascript", "-e", BROWSE_SCRIPT if kind == "file" else BROWSE_FOLDER_SCRIPT]
+        extra = {}
+    elif sys.platform == "win32":
+        script = (WIN_PICK_FILE.format(patterns=";".join(
+                      "*" + ext for ext in sorted(SUPPORTED_FORMATS)))
+                  if kind == "file" else WIN_PICK_FOLDER)
+        cmd = ["powershell", "-NoProfile", "-STA", "-Command", script]
+        extra = {"encoding": "utf-8", "creationflags": subprocess.CREATE_NO_WINDOW}
+    else:
+        raise RuntimeError("No native picker on this system — drag the "
+                           + kind + " onto the window instead.")
+
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600, **extra)
+    chosen = result.stdout.strip()
+    if result.returncode != 0:
+        detail = (result.stderr or "").strip()
+        if not detail:            # dialog dismissed or process ended
+            return None
+        raise RuntimeError(detail.splitlines()[-1])
+    if not chosen or chosen == "__CANCELLED__":
+        return None
+    return chosen
+
+
 @app.post("/api/browse")
 def api_browse():
     """
-    Open the real macOS file picker and return the chosen path.
+    Open the system's own file picker and return the chosen path.
 
     The browser cannot hand a filesystem path to the server (an <input
     type=file> only yields a copy of the bytes), but this server runs on the
-    user's own Mac — so we ask macOS for a native Open dialog and get the true
-    path back. Runs as a job because the dialog blocks until the user answers.
+    user's own computer — so we ask the OS for a native Open dialog and get the
+    true path back. Runs as a job because the dialog blocks until the user answers.
     """
     def work():
-        result = subprocess.run(
-            ["osascript", "-e", BROWSE_SCRIPT],
-            capture_output=True, text=True, timeout=600,
-        )
-        chosen = result.stdout.strip()
-        if result.returncode != 0:
-            detail = (result.stderr or "").strip()
-            if not detail:            # dialog dismissed or process ended
-                return {"cancelled": True}
-            raise RuntimeError(detail.splitlines()[-1])
-        if not chosen or chosen == "__CANCELLED__":
+        chosen = _native_pick("file")
+        if chosen is None:
             return {"cancelled": True}
         path = _valid_media_path(chosen)          # raises on unsupported type
         return _open_payload(path)
@@ -343,17 +388,8 @@ def api_folders_list():
 def api_folders_browse():
     """Native folder picker, so a path never has to be typed. Runs as a job."""
     def work():
-        result = subprocess.run(
-            ["osascript", "-e", BROWSE_FOLDER_SCRIPT],
-            capture_output=True, text=True, timeout=600,
-        )
-        chosen = result.stdout.strip()
-        if result.returncode != 0:
-            detail = (result.stderr or "").strip()
-            if not detail:
-                return {"cancelled": True}
-            raise RuntimeError(detail.splitlines()[-1])
-        if not chosen or chosen == "__CANCELLED__":
+        chosen = _native_pick("folder")
+        if chosen is None:
             return {"cancelled": True}
         return folders.add(chosen)
 
@@ -611,7 +647,7 @@ def api_text_save():
     if not text.strip():
         return jsonify({"error": "Nothing to save — the transcript is empty."}), 400
     out = _unique_output(library.EXPORTS_DIR, stem, fmt, suffix)
-    out.write_text(text)
+    out.write_text(text, encoding="utf-8")
     return jsonify({"output": str(out)})
 
 

@@ -2,7 +2,7 @@
 
 **Edit audio and video by editing the transcript.** Delete a word from the text
 and it disappears from the recording. A local, private, Descript-style editor
-for macOS on Apple Silicon.
+for macOS on Apple Silicon, and now Windows.
 
 It was built for cleaning up guided-meditation recordings before publishing to
 YouTube — transcribe once, click the words you want gone, preview, export — but
@@ -36,7 +36,8 @@ today can be edited a year from now.
 
 ## Requirements
 
-- macOS on Apple Silicon (Intel Macs are untested)
+- macOS on Apple Silicon (Intel Macs are untested), or Windows 10/11
+  (newer and less tested — see below)
 - Python 3.11 or newer (3.13 is what it is developed against)
 - `ffmpeg` — `brew install ffmpeg`
 - `portaudio` — `brew install portaudio` (only for the desktop app's preview)
@@ -60,6 +61,19 @@ curl -fsSL https://raw.githubusercontent.com/bravethea/tapecut/main/scripts/inst
 It installs ffmpeg and Python 3.13, puts Tapecut in `~/Tapecut/app`, sets up
 its Python packages (a few GB) and adds **Tapecut.app** to your Applications.
 Run it again any time to update.
+
+**On Windows**, paste this into PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/bravethea/tapecut/main/scripts/install.ps1 | iex
+```
+
+It installs Git, ffmpeg and Python 3.13 with winget, puts Tapecut in
+`~\Tapecut\app`, sets up its Python packages and adds Tapecut to the Start menu
+and the desktop. Windows support is new: transcription runs on the CPU, as it
+does on a Mac, and the Mac-only conveniences (Voice Memos, Full Disk Access)
+don't apply. Please [open an issue](https://github.com/bravethea/tapecut/issues)
+if something doesn't work.
 
 Or by hand:
 

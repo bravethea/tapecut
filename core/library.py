@@ -75,7 +75,7 @@ def load_config() -> dict:
     cfg = dict(DEFAULT_CONFIG)
     if CONFIG_PATH.exists():
         try:
-            cfg.update(json.loads(CONFIG_PATH.read_text()))
+            cfg.update(json.loads(CONFIG_PATH.read_text(encoding="utf-8")))
         except Exception:
             pass
     return cfg
@@ -83,7 +83,7 @@ def load_config() -> dict:
 
 def save_config(cfg: dict) -> None:
     ensure_dirs()
-    CONFIG_PATH.write_text(json.dumps(cfg, indent=1))
+    CONFIG_PATH.write_text(json.dumps(cfg, indent=1), encoding="utf-8")
 
 
 # ------------------------------------------------------------------ keys
@@ -126,14 +126,15 @@ def save(media_path: str, words: list[dict], prompt: str = "", source: str = "",
         "analyses": analyses or {},
         "words": words,
     }
-    _json_path(key).write_text(json.dumps(entry, ensure_ascii=False, indent=1))
+    _json_path(key).write_text(json.dumps(entry, ensure_ascii=False, indent=1), encoding="utf-8")
 
     # readable sidecar: speaker labels where known, cut words in [brackets]
     from core.textexport import to_text
     body = to_text(words, names=entry["speaker_names"], include_cut=True)
     (TRANSCRIPTS_DIR / f"{key}.txt").write_text(
         f"# {entry['media_name']} — saved {entry['saved_at']}\n"
-        f"# cut words shown in [brackets]\n\n" + body
+        f"# cut words shown in [brackets]\n\n" + body,
+        encoding="utf-8",
     )
     return key
 
@@ -144,7 +145,7 @@ def load(media_path: str) -> dict | None:
     if not path.exists():
         return None
     try:
-        entry = json.loads(path.read_text())
+        entry = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return None
     for w in entry.get("words", []):
@@ -166,7 +167,7 @@ def get(key: str) -> dict | None:
     if not path.exists() or path.parent != TRANSCRIPTS_DIR:
         return None
     try:
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return None
 
@@ -177,7 +178,7 @@ def list_all() -> list[dict]:
     entries = []
     for path in TRANSCRIPTS_DIR.glob("*.json"):
         try:
-            e = json.loads(path.read_text())
+            e = json.loads(path.read_text(encoding="utf-8"))
             words = e.get("words", [])
             entries.append({
                 "key": e.get("key", path.stem),

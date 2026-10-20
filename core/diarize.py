@@ -29,7 +29,7 @@ class DiarizationError(RuntimeError):
 
 def _read_env_file(path: Path, key: str) -> str | None:
     try:
-        for line in path.read_text().splitlines():
+        for line in path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line.startswith(f"{key}=") and not line.startswith("#"):
                 return line.split("=", 1)[1].strip().strip('"').strip("'")

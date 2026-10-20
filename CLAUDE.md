@@ -3,8 +3,10 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Tapecut edits audio and video by editing the transcript: transcribe once with
-per-word timestamps, then cross words out and the media follows. Local-only,
-macOS/Apple Silicon. Two front ends share one engine — a Flask browser UI (the
+per-word timestamps, then cross words out and the media follows. Local-only;
+macOS/Apple Silicon first, Windows via `scripts/install.ps1` (not yet run on Windows —
+keep OS calls behind `sys.platform`, as `server.py:_native_pick()` does). Two
+front ends share one engine — a Flask browser UI (the
 real app) and an older PyQt6 desktop window (maintained, not grown).
 
 ## Commands

@@ -6,8 +6,9 @@ Draw the launcher's icon: a few lines of transcript, one word struck out.
 
     venv/bin/python scripts/app_icon.py OUT.png
 
-Writes a 1024×1024 PNG; make-app.sh turns it into an .icns. Colours are the
-light theme's tokens from web/static/style.css.
+Writes a 1024×1024 PNG, which make-app.sh turns into an .icns, or — given a
+path ending in .ico — the multi-size icon install.ps1 uses on Windows.
+Colours are the light theme's tokens from web/static/style.css.
 """
 import sys
 
@@ -60,7 +61,12 @@ def draw(path: str) -> None:
                     radius=px(9), fill=CUT)
             x += width + gap
 
-    img.resize((SIZE, SIZE), Image.LANCZOS).save(path)
+    img = img.resize((SIZE, SIZE), Image.LANCZOS)
+    if path.lower().endswith(".ico"):
+        img.save(path, sizes=[(16, 16), (24, 24), (32, 32), (48, 48),
+                              (64, 64), (128, 128), (256, 256)])
+    else:
+        img.save(path)
 
 
 if __name__ == "__main__":
