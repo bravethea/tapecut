@@ -1236,10 +1236,12 @@ function loadRecording(info) {
   state.analyses = info.analyses || {};
   state.lastAnalysis = null;
   $("analysis-out").innerHTML = "";
-  $("btn-diarize").disabled = !info.diarization_available || !!info.media_missing;
-  $("btn-diarize").title = info.diarization_available
-    ? "identify who is speaking"
-    : "needs a HuggingFace token (HF_TOKEN) — the pyannote models are gated";
+  const spk = $("speaker-select");
+  spk.disabled = !info.diarization_available;
+  if (spk.disabled) spk.value = "";
+  spk.title = info.diarization_available
+    ? "Label who is speaking — adds about the recording's length again"
+    : "Needs a HuggingFace token (HF_TOKEN) — the pyannote models are gated. See SETUP.md.";
   $("now-open").textContent = info.name || "";
   $("btn-back").classList.remove("hidden");
   $("prompt-input").value = info.prompt || "";
@@ -1321,35 +1323,56 @@ function setStatus(id, text) {
 
 /* ---------------------------------------------------------------- transcribe */
 
+const SPEAKERS_KEY = "tapecut-speakers";   // last choice: most people record alike
+try { $("speaker-select").value = localStorage.getItem(SPEAKERS_KEY) || ""; } catch {}
+$("speaker-select").onchange = () => {
+  try { localStorage.setItem(SPEAKERS_KEY, $("speaker-select").value); } catch {}
+};
+
 $("btn-transcribe").onclick = async () => {
   if (!state.path) return;
   const btn = $("btn-transcribe");
   btn.disabled = true;
   try {
-    const mins = state.words.length ? "" : " — roughly 2½× the length of the recording";
+    const speakers = $("speaker-select").disabled ? "" : $("speaker-select").value;
+    const mins = state.words.length ? "" : " — roughly 2½× the length of the recording"
+      + (speakers ? ", plus about its length again for speakers" : "");
     setJob("Transcribing…" + mins);
     const { job } = await api("/api/transcribe", {
       path: state.path,
       source: state.source,
       prompt: $("prompt-input").value,
       language: $("lang-select").value,
+      speakers,
     });
     const data = await pollJob(job, (j) => {
+      if (j.stage === "speakers") {
+        // pyannote reports no progress of its own, so no percentage or estimate
+        setStatus("transcribe-status",
+          `Words done — now labelling speakers (about as long as the recording) — ${fmtTime(j.elapsed)}`);
+        setJob("Labelling speakers…");
+        return;
+      }
       // progress arrives once recognition starts (after voice detection);
       // a time-left guess needs a few percent behind it to mean anything
       let pct = "", left = "";
       if (j.progress != null) {
         pct = ` ${Math.round(j.progress * 100)}%`;
-        if (j.progress >= 0.05 && j.progress < 1)
+        if (j.progress >= 0.05 && j.progress < 1 && !speakers)
           left = ` · about ${fmtTime(j.elapsed / j.progress * (1 - j.progress))} left`;
       }
       setStatus("transcribe-status", `Transcribing…${pct} — ${fmtTime(j.elapsed)}${left}`);
       setJob(`Transcribing…${pct || " " + fmtTime(j.elapsed)}`);
     });
+    // a new run can number its speakers differently; old names would mislabel
+    state.speakerNames = {};
     loadWords(data.words);
     const marked = await autoMarkDisfluencies();
+    const who = data.speaker_warning ? ` ${data.speaker_warning}`
+      : data.speakers?.length ? ` ${data.speakers.length} speaker(s) — click a name above the text to rename it.`
+      : "";
     setStatus("transcribe-status",
-      `Done — ${data.words.length} words.`
+      `Done — ${data.words.length} words.` + who
       + (marked
           ? ` ${marked} repetitions/stutters crossed out for you — ⌥-click any to keep it, ⌘Z undoes all.`
           : " Click any word to cut it."));
@@ -1485,13 +1508,10 @@ function renameSpeaker(id) {
 function renderSpeakerBar() {
   const ids = speakerIds();
   const bar = $("speaker-bar");
-  bar.classList.toggle("hidden", !state.words.length);
+  // speakers are chosen when transcribing; the bar only names the ones found
+  bar.classList.toggle("hidden", !ids.length);
   const box = $("speaker-chips");
   box.innerHTML = "";
-  if (!ids.length) {
-    box.innerHTML = '<span class="muted">none yet — identify them to label the transcript</span>';
-    return;
-  }
   ids.forEach((id) => {
     const chip = document.createElement("span");
     chip.className = "spk " + speakerClass(id);
@@ -1501,42 +1521,6 @@ function renderSpeakerBar() {
     box.appendChild(chip);
   });
 }
-
-$("btn-diarize").onclick = async () => {
-  if (!state.words.length || state.mediaMissing) return;
-  const btn = $("btn-diarize");
-  const count = $("speaker-count").value;
-  btn.disabled = true;
-  const label = btn.textContent;
-  try {
-    const { job } = await api("/api/diarize", {
-      path: state.path, source: state.source, words: state.words,
-      prompt: $("prompt-input").value, pause_cuts: [...state.pauseCuts],
-      speaker_names: state.speakerNames, analyses: state.analyses,
-      num_speakers: count || null,
-    });
-    setStatus("transcribe-status",
-      "Identifying speakers — this runs at about the length of the recording…");
-    setJob("Identifying speakers… — about as long as the recording");
-    const data = await pollJob(job, (j) => {
-      setStatus("transcribe-status", `Identifying speakers… ${Math.round(j.elapsed)}s`);
-      setJob(`Identifying speakers… ${fmtTime(j.elapsed)}`);
-    });
-    data.words.forEach((w, i) => { if (state.words[i]) state.words[i].speaker = w.speaker; });
-    renderTranscript();
-    renderSpeakerBar();
-    refreshTextPreview();
-    setStatus("transcribe-status",
-      `Found ${data.speakers.length} speaker(s) — click a name to rename it.`);
-    setJob(`${data.speakers.length} speakers found`, "done");
-  } catch (e) {
-    setJob("Speaker identification failed", "fail");
-    setStatus("transcribe-status", `Could not identify speakers: ${e.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = label;
-  }
-};
 
 function paintPause(i) {
   state.pauseChips[i]?.classList.toggle("cut", state.pauseCuts.has(i));

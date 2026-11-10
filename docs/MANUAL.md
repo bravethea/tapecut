@@ -253,17 +253,23 @@ cannot see, drop the threshold to 0.4 s or so and look there.
 
 ## 7. Speakers
 
-Press **🗣 Identify speakers** to run diarization (pyannote, via whisperX). Set
-the speaker count if you know it, or leave it on **auto**. Expect it to take
-roughly as long as the recording itself.
+Decide this before you transcribe: next to **Language**, set **Speakers** to
+**Detect**, or to the number of voices if you know it. Speaker labelling
+(diarization — pyannote, via whisperX) then runs straight after transcription,
+in the same job, and adds roughly the length of the recording. Leave it on
+**Don't label** for a single voice. Tapecut remembers your choice for the next
+recording.
+
+If labelling fails, you still get the transcript; the status line says what
+went wrong.
 
 Labels then appear as coloured headings throughout the transcript, in the
 library, and in every text export. **Click any name to rename it** —
 `SPEAKER_00` → `Teodora` — and the new name is used everywhere.
 
 Diarization needs a HuggingFace token; [SETUP.md](SETUP.md) explains how to get
-one and where to put it. Without a token the button tells you so and nothing
-else changes.
+one and where to put it. Without a token the Speakers choice is switched off and
+says why.
 
 ## 8. Exporting media
 
@@ -374,7 +380,7 @@ bar explaining that playback and export are off until the file turns up.
 rclone config create gdrive drive scope=drive.readonly
 ```
 
-**"Identify speakers" says it needs a token.** See [SETUP.md](SETUP.md) — you
+**The Speakers choice is greyed out.** See [SETUP.md](SETUP.md) — you
 need a HuggingFace token and you must accept the pyannote model's conditions on
 its model page.
 

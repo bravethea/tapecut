@@ -157,6 +157,16 @@
             <option value="">Auto-detect</option>
           </select>
         </div>
+        <div>
+          <label for="speaker-select">Speakers</label>
+          <select id="speaker-select" title="Label who is speaking — adds about the recording's length again">
+            <option value="">Don't label</option>
+            <option value="auto">Detect</option>
+            <option value="2">2 speakers</option><option value="3">3 speakers</option>
+            <option value="4">4 speakers</option><option value="5">5 speakers</option>
+            <option value="6">6 speakers</option>
+          </select>
+        </div>
         <button id="btn-transcribe" class="primary">Transcribe</button>
       </div>
       <div id="transcribe-status" class="status hidden"></div>
@@ -233,15 +243,7 @@
       <div id="speaker-bar" class="speakers hidden">
         <span class="label">Speakers</span>
         <span id="speaker-chips"></span>
-        <span class="spacer"></span>
-        <label class="sr-only" for="speaker-count">Expected speakers</label>
-        <select id="speaker-count" title="How many speakers to expect">
-          <option value="">auto</option>
-          <option value="1">1</option><option value="2">2</option>
-          <option value="3">3</option><option value="4">4</option>
-          <option value="5">5</option><option value="6">6</option>
-        </select>
-        <button id="btn-diarize" class="ghost sm">Identify speakers</button>
+        <span class="muted">click a name to rename it</span>
       </div>
 
       <div id="export-status" class="status hidden"></div>

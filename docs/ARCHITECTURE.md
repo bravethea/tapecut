@@ -81,8 +81,7 @@ scrolling and let you walk away from a 35-minute export.
 | Opening | `POST /api/open`, `/api/browse` (native Finder dialog), `/api/convert` |
 | Drive | `GET /api/drive/status`, `/api/drive/list`; `POST /api/drive/folder`, `/api/drive/fetch` |
 | Library | `GET /api/library`, `/api/library/<key>`; `POST /api/library/<key>/open`, `/api/library/<key>/export` |
-| Transcript | `POST /api/transcribe`, `/api/save`, `/api/disfluencies` |
-| Speakers | `GET /api/diarize/status`; `POST /api/diarize` |
+| Transcript | `POST /api/transcribe` (also labels speakers, if asked), `/api/save`, `/api/disfluencies` |
 | Text | `POST /api/text`, `/api/text/save` |
 | Analysis | `GET /api/analyse/backend`; `POST /api/analyse` |
 | Export | `POST /api/export` |

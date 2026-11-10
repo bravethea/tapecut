@@ -53,12 +53,17 @@ _jobs_lock = threading.Lock()
 _job_local = threading.local()     # which job the current thread is running
 
 
-def _report_progress(fraction: float) -> None:
-    """Call from inside a job; the client sees it as `progress`, 0–1."""
+def _report_progress(fraction: float, stage: str | None = None) -> None:
+    """
+    Call from inside a job; the client sees `progress` (0–1) and, when a job
+    has several steps, which `stage` it is in.
+    """
     job_id = getattr(_job_local, "job_id", None)
     if job_id:
         with _jobs_lock:
             _jobs[job_id]["progress"] = round(min(max(fraction, 0.0), 1.0), 3)
+            if stage:
+                _jobs[job_id]["stage"] = stage
 
 
 def _start_job(target, *args) -> str:
@@ -578,40 +583,7 @@ def api_cover_delete(name):
 
 # ---------------------------------------------------------------- speakers
 
-@app.get("/api/diarize/status")
-def api_diarize_status():
-    return jsonify({"available": diarize.is_available()})
-
-
-@app.post("/api/diarize")
-def api_diarize():
-    """Attach speaker labels to a word list (job). Slow: roughly realtime."""
-    data = request.get_json(force=True)
-    try:
-        path = _valid_media_path(data.get("path", ""))
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    words = data.get("words") or []
-    if not words:
-        return jsonify({"error": "No transcript to label."}), 400
-
-    def as_int(key):
-        v = data.get(key)
-        return int(v) if v not in (None, "", 0, "0") else None
-
-    def work():
-        labelled = diarize.diarize_words(
-            str(path), words,
-            num_speakers=as_int("num_speakers"),
-            min_speakers=as_int("min_speakers"),
-            max_speakers=as_int("max_speakers"),
-        )
-        library.save(str(path), labelled, data.get("prompt", ""),
-                     data.get("source", str(path)), data.get("pause_cuts"),
-                     data.get("speaker_names"), data.get("analyses"))
-        return {"words": labelled, "speakers": diarize.speaker_list(labelled)}
-
-    return jsonify({"job": _start_job(work)})
+# Speakers are labelled as part of transcription — see api_transcribe().
 
 
 # ---------------------------------------------------------------- transcript text
@@ -694,6 +666,14 @@ def api_analyse():
 
 @app.post("/api/transcribe")
 def api_transcribe():
+    """
+    Transcribe a recording (job), labelling who speaks when if asked.
+
+    Speakers are chosen here rather than afterwards: whether a recording has
+    several voices is known before transcribing, and a separate pass later is
+    a second wait over the same audio. `speakers` is "" (don't label), "auto",
+    or an expected count.
+    """
     data = request.get_json(force=True)
     try:
         path = _valid_media_path(data.get("path", ""))
@@ -703,10 +683,31 @@ def api_transcribe():
     language = data.get("language") or None
     source = data.get("source", str(path))
 
+    speakers = str(data.get("speakers") or "").strip()
+    label_speakers = bool(speakers)
+    num_speakers = int(speakers) if speakers.isdigit() and int(speakers) > 0 else None
+    # refuse now, not after half an hour of transcribing
+    if label_speakers and not diarize.is_available():
+        return jsonify({"error": "Labelling speakers needs a HuggingFace token "
+                                 "(HF_TOKEN) — see docs/SETUP.md."}), 400
+
     def work():
-        words = transcribe(str(path), prompt, language, progress=_report_progress)
+        # recognition runs ~2½× realtime and diarization ~1×, so when both
+        # run, recognition gets the first 70% of the bar
+        share = 0.7 if label_speakers else 1.0
+        words = transcribe(str(path), prompt, language,
+                           progress=lambda f: _report_progress(f * share))
+        warning = ""
+        if label_speakers and words:
+            _report_progress(share, stage="speakers")
+            try:
+                words = diarize.diarize_words(str(path), words, num_speakers=num_speakers)
+            except Exception as exc:
+                # never let the speaker step throw away a finished transcript
+                warning = f"Speakers couldn't be labelled: {exc}"
         library.save(str(path), words, prompt or "", source)
-        return {"words": words}
+        return {"words": words, "speakers": diarize.speaker_list(words),
+                "speaker_warning": warning}
 
     return jsonify({"job": _start_job(work)})
 
@@ -909,6 +910,8 @@ def api_job(job_id):
         }
         if "progress" in job:
             payload["progress"] = job["progress"]
+        if "stage" in job:
+            payload["stage"] = job["stage"]
         if job["status"] == "done":
             payload.update(job["result"])
         elif job["status"] == "error":
