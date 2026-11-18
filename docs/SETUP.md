@@ -204,7 +204,9 @@ Tapecut looks in that order: `TAPECUT_HF_TOKEN`, `HF_TOKEN`, `hf_token`,
 **Never commit a token.** `.gitignore` already excludes `.env` and `config.json`,
 and `~/Tapecut/config.json` is outside the repository anyway.
 
-Diarization runs on CPU and takes roughly as long as the recording.
+With a token in place, the **Speakers** choice in the transcribe panel switches
+on. Diarization runs on CPU, straight after transcription in the same job, and
+adds roughly the length of the recording.
 
 ---
 

@@ -52,8 +52,8 @@ Nothing is lost when you switch.
 **The transcript** takes the main column and starts at the top of the page. The
 player and the editing tools stay pinned above it while you scroll.
 
-**The top bar** carries a job chip. Long jobs — transcription, speaker
-identification, export — report into it, it survives scrolling, and it stays put
+**The top bar** carries a job chip. Long jobs — transcription (with speaker
+labelling, if you chose it), export — report into it, it survives scrolling, and it stays put
 when the job finishes. Start a 35-minute job and walk away.
 
 **‹ Back** in the top bar closes the recording and returns you to the source
@@ -144,8 +144,18 @@ you which kind you have.
 ## 4. Transcribing
 
 Press **Transcribe**. The first run ever downloads the Whisper model (~1.6 GB);
-after that everything is offline. A 30-minute recording takes a few minutes on
-Apple Silicon.
+after that everything is offline.
+
+**How long it takes.** Transcription runs on the CPU, using every performance
+core, and takes roughly 2½× the length of the recording — a 30-minute recording
+is over an hour. Once the words start coming, the status line shows a
+percentage and an estimate of the time left. Leave Tapecut running until it
+finishes: the job lives in its server, so quitting the server, or restarting
+the computer, stops it and you start again.
+
+**Speakers.** If more than one person speaks, set **Speakers** before you press
+Transcribe — see [Speakers](#7-speakers). It adds roughly the length of the
+recording again.
 
 **Vocabulary hint.** Names, jargon, Pali or Sanskrit terms, place names —
 anything unusual. The hint is passed to faster-whisper as `hotwords`, which

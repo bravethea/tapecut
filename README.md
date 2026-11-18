@@ -120,7 +120,9 @@ venv/bin/python main.py
 2. In the rail on the left choose **This Mac → 📂 Choose a file…** and pick a
    recording. (Or **＋ Connect** a folder — your Voice Memos folder, a
    recorder's card — and pick from its list.)
-3. Press **Transcribe**. A 30-minute recording takes a few minutes.
+3. If more than one person speaks, set **Speakers** first. Then press
+   **Transcribe**. It runs on your computer's CPU and takes roughly 2½× the
+   length of the recording; a progress bar shows how far along it is.
 4. Click any word to cut it. Click it again to bring it back.
 5. Press **▶ Preview** to hear the edit with the cuts skipped.
 6. Choose a format and press **Export**.
