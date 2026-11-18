@@ -1345,6 +1345,7 @@ $("btn-transcribe").onclick = async () => {
       language: $("lang-select").value,
       speakers,
     });
+    let rate0 = null;                // when and where the percentage started
     const data = await pollJob(job, (j) => {
       if (j.stage === "speakers") {
         // pyannote reports no progress of its own, so no percentage or estimate
@@ -1353,16 +1354,25 @@ $("btn-transcribe").onclick = async () => {
         setJob("Labelling speakers…");
         return;
       }
-      // progress arrives once recognition starts (after voice detection);
-      // a time-left guess needs a few percent behind it to mean anything
-      let pct = "", left = "";
-      if (j.progress != null) {
-        pct = ` ${Math.round(j.progress * 100)}%`;
-        if (j.progress >= 0.05 && j.progress < 1 && !speakers)
-          left = ` · about ${fmtTime(j.elapsed / j.progress * (1 - j.progress))} left`;
+      // Before recognition starts, whisperX loads the model and scans the whole
+      // recording for speech — minutes on a long file, with no progress to
+      // report. Say so, or it reads as a hang.
+      if (j.progress == null) {
+        setStatus("transcribe-status",
+          `Preparing — loading the model and finding the speech… ${fmtTime(j.elapsed)}`);
+        setJob(`Preparing… ${fmtTime(j.elapsed)}`);
+        return;
       }
+      // time left from the recognition rate alone; counting the preparation
+      // minutes would overstate it. Needs a few percent behind it to mean anything.
+      if (!rate0) rate0 = { t: j.elapsed, p: j.progress };
+      const pct = ` ${Math.round(j.progress * 100)}%`;
+      let left = "";
+      const done = j.progress - rate0.p, took = j.elapsed - rate0.t;
+      if (done >= 0.03 && took > 0 && j.progress < 1 && !speakers)
+        left = ` · about ${fmtTime(took / done * (1 - j.progress))} left`;
       setStatus("transcribe-status", `Transcribing…${pct} — ${fmtTime(j.elapsed)}${left}`);
-      setJob(`Transcribing…${pct || " " + fmtTime(j.elapsed)}`);
+      setJob(`Transcribing…${pct}`);
     });
     // a new run can number its speakers differently; old names would mislabel
     state.speakerNames = {};
